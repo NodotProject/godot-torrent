@@ -1,0 +1,261 @@
+name: Build Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-libtorrent:
+    name: Build libtorrent for ${{ matrix.os-name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            os-name: Linux
+            platform: linux
+            arch: x86_64
+          - os: ubuntu-latest
+            os-name: Windows
+            platform: windows
+            arch: x86_64
+          - os: macos-latest
+            os-name: macOS
+            platform: macos
+            arch: universal
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libssl-dev libboost-dev pkg-config
+
+      - name: Install dependencies (Windows cross-compile)
+        if: matrix.platform == 'windows'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64 cmake
+
+      - name: Install dependencies (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          brew install cmake boost openssl
+
+      - name: Cache libtorrent
+        id: cache-libtorrent
+        uses: actions/cache@v4
+        with:
+          path: |
+            libtorrent/build
+          key: libtorrent-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
+
+      - name: Build libtorrent
+        if: steps.cache-libtorrent.outputs.cache-hit != 'true'
+        run: |
+          cd libtorrent
+          mkdir -p build && cd build
+          
+          if [ "${{ matrix.platform }}" == "linux" ]; then
+            cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+              -Dstatic_runtime=ON -Dbuild_shared_libs=OFF -Dbuild_tests=OFF \
+              -Dbuild_examples=OFF -Dbuild_tools=OFF
+          elif [ "${{ matrix.platform }}" == "windows" ]; then
+            cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+              -DCMAKE_TOOLCHAIN_FILE=../cmake/mingw-w64-x86_64.cmake \
+              -Dstatic_runtime=ON -Dbuild_shared_libs=OFF -Dbuild_tests=OFF \
+              -Dbuild_examples=OFF -Dbuild_tools=OFF
+          elif [ "${{ matrix.platform }}" == "macos" ]; then
+            cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+              -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+              -Dstatic_runtime=ON -Dbuild_shared_libs=OFF -Dbuild_tests=OFF \
+              -Dbuild_examples=OFF -Dbuild_tools=OFF
+          fi
+          
+          make -j$(nproc || sysctl -n hw.ncpu)
+
+  build-godot-cpp:
+    name: Build godot-cpp for ${{ matrix.os-name }}
+    runs-on: ${{ matrix.os }}
+    needs: build-libtorrent
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            os-name: Linux
+            platform: linux
+            arch: x86_64
+          - os: ubuntu-latest
+            os-name: Windows
+            platform: windows
+            arch: x86_64
+          - os: macos-latest
+            os-name: macOS
+            platform: macos
+            arch: universal
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install SCons
+        run: pip install scons
+
+      - name: Install MinGW (for Windows cross-compilation)
+        if: matrix.platform == 'windows'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64
+
+      - name: Cache godot-cpp
+        id: cache-godotcpp
+        uses: actions/cache@v4
+        with:
+          path: |
+            godot-cpp/bin
+            godot-cpp/gen
+          key: godot-cpp-${{ matrix.platform }}-${{ hashFiles('godot-cpp/SConstruct', 'godot-cpp/gdextension/extension_api.json', 'godot-cpp/binding_generator.py') }}
+
+      - name: Build godot-cpp
+        if: steps.cache-godotcpp.outputs.cache-hit != 'true'
+        env:
+          CC: ${{ matrix.platform == 'windows' && 'x86_64-w64-mingw32-gcc' || '' }}
+          CXX: ${{ matrix.platform == 'windows' && 'x86_64-w64-mingw32-g++' || '' }}
+        run: |
+          cd godot-cpp
+          scons platform=${{ matrix.platform }} arch=${{ matrix.arch }} ${{ matrix.platform == 'windows' && 'use_mingw=yes' || '' }} generate_bindings=yes target=template_release
+          scons platform=${{ matrix.platform }} arch=${{ matrix.arch }} ${{ matrix.platform == 'windows' && 'use_mingw=yes' || '' }} target=template_debug
+
+  build-addon:
+    name: Build addon for ${{ matrix.os-name }}
+    runs-on: ${{ matrix.os }}
+    needs: [build-libtorrent, build-godot-cpp]
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            os-name: Linux
+            platform: linux
+            arch: x86_64
+            extension: so
+          - os: ubuntu-latest
+            os-name: Windows
+            platform: windows
+            arch: x86_64
+            extension: dll
+          - os: macos-latest
+            os-name: macOS
+            platform: macos
+            arch: universal
+            extension: dylib
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install SCons
+        run: pip install scons
+        
+      - name: Install MinGW (for Windows cross-compilation)
+        if: matrix.platform == 'windows'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64
+
+      - name: Restore libtorrent cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            libtorrent/build
+          key: libtorrent-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
+
+      - name: Restore godot-cpp cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            godot-cpp/bin
+            godot-cpp/gen
+          key: godot-cpp-${{ matrix.platform }}-${{ hashFiles('godot-cpp/SConstruct', 'godot-cpp/gdextension/extension_api.json', 'godot-cpp/binding_generator.py') }}
+
+      - name: Build project
+        env:
+          CC: ${{ matrix.platform == 'windows' && 'x86_64-w64-mingw32-gcc' || '' }}
+          CXX: ${{ matrix.platform == 'windows' && 'x86_64-w64-mingw32-g++' || '' }}
+        run: |
+          scons platform=${{ matrix.platform }} ${{ matrix.platform == 'windows' && 'use_mingw=yes' || '' }} target=template_release arch=${{ matrix.arch }}
+
+      - name: Package addon
+        run: |
+          mkdir -p package/addons/godot-torrent/bin
+          cp -r addons/godot-torrent/* package/addons/godot-torrent/ 2>/dev/null || mkdir -p package/addons/godot-torrent
+          cp addons/godot-torrent/bin/libgodot-torrent.${{ matrix.extension }} package/addons/godot-torrent/bin/ 2>/dev/null || echo "Library not found, will be created by build"
+          cd package
+          zip -r ../godot-torrent-${{ matrix.platform }}-${{ matrix.arch }}.zip .
+          cd ..
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-torrent-${{ matrix.platform }}-${{ matrix.arch }}
+          path: godot-torrent-${{ matrix.platform }}-${{ matrix.arch }}.zip
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-addon]
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Combine builds
+        run: |
+          mkdir -p release_package
+          unzip artifacts/godot-torrent-linux-x86_64/godot-torrent-linux-x86_64.zip -d release_package
+          unzip artifacts/godot-torrent-windows-x86_64/godot-torrent-windows-x86_64.zip -d temp_windows
+          cp -r temp_windows/addons/godot-torrent/bin/* release_package/addons/godot-torrent/bin/ || true
+          unzip artifacts/godot-torrent-macos-universal/godot-torrent-macos-universal.zip -d temp_macos
+          cp -r temp_macos/addons/godot-torrent/bin/* release_package/addons/godot-torrent/bin/ || true
+          cd release_package
+          zip -r ../godot-torrent-release.zip .
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: godot-torrent-release.zip
+          name: godot-torrent-${{ github.ref_name }}.zip

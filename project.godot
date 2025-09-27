@@ -12,3 +12,9 @@ config_version=5
 
 config/name="godot-torrent"
 config/description="A wrapper around libtorrent giving access to its API in GDScript"
+run/main_scene="uid://bqxvg4k8n0l1r"
+config/features=PackedStringArray("4.5")
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/godot-torrent/plugin.cfg", "res://addons/gut/plugin.cfg")
