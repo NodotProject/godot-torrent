@@ -2,9 +2,25 @@
 
 A comprehensive BitTorrent GDExtension for Godot 4, providing full protocol functionality with native C++ performance.
 
-[![Build Status](https://github.com/NodotProject/godot-torrent/workflows/Build%20and%20Test/badge.svg)](https://github.com/NodotProject/godot-torrent/actions)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Godot](https://img.shields.io/badge/godot-4.1+-blue.svg)](https://godotengine.org/)
+[![Discord](https://img.shields.io/discord/1089846386566111322)](https://discord.gg/Rx9CZX4sjG) [![Mastodon](https://img.shields.io/mastodon/follow/110106863700290562?domain=mastodon.gamedev.place)](https://mastodon.gamedev.place/@krazyjakee) [![Youtube](https://img.shields.io/youtube/channel/subscribers/UColWkNMgHseKyU7D1QGeoyQ)](https://www.youtube.com/@GodotNodot) [![GitHub Sponsors](https://img.shields.io/github/sponsors/krazyjakee)](https://github.com/sponsors/krazyjakee) [![GitHub Stars](https://img.shields.io/github/stars/NodotProject/godot-torrent)](https://github.com/NodotProject/godot-torrent)
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+  - [Prerequisites](#prerequisites)
+  - [Build from Source](#build-from-source)
+- [Documentation](#documentation)
+- [Core Classes](#core-classes)
+- [Use Cases](#use-cases)
+- [Performance](#performance)
+- [Testing](#testing)
+- [Contributing](#contributing)
+- [Support Me](#-support-me)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
 
 ## Overview
 
@@ -144,12 +160,18 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) for deta
 - **[GUT](https://github.com/bitwes/Gut)** - Godot Unit Testing framework
 - **The Godot Community** - Continuous support and examples
 
-## Support
+## 💖 Support Me
+Hi! I’m krazyjakee 🎮, creator and maintain­er of the *NodotProject* - a suite of open‑source Godot tools (e.g. Nodot, Gedis, GedisQueue etc) that empower game developers to build faster and maintain cleaner code.
 
-- **Documentation**: [docs/](docs/)
-- **Issues**: [GitHub Issues](https://github.com/NodotProject/godot-torrent/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/NodotProject/godot-torrent/discussions)
+I’m looking for sponsors to help sustain and grow the project: more dev time, better docs, more features, and deeper community support. Your support means more stable, polished tools used by indie makers and studios alike.
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/krazyjakee)
+
+Every contribution helps maintain and improve this project. And encourage me to make more projects like this!
+
+*This is optional support. The tool remains free and open-source regardless.*
 
 ---
 
-**Made with ❤️ for the Godot community**
+**Created with ❤️ for Godot Developers**  
+For contributions, please open issues on GitHub
