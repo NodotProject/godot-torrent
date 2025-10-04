@@ -24,5 +24,3 @@ Thumbs.db
 *.lib
 *.exe
 /*.json
-.ai/
-.sconf_temp

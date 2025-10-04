@@ -1,0 +1,46 @@
+# change the followings to match your Github username and repo name
+baseurl: "/Gedis" # the name of your github repo
+url: "https://nodotproject.github.io" # the url of your github pages
+
+# site information used in page title, meta data etc.
+title: "Gedis: A Redis-like datastore for Godot"
+description: An in-memory, Redis-like datastore for Godot.
+
+# color theme for links
+theme-color: indigo # indigo|yellow|pink|green|stone|
+
+# homepage information
+author: NodotProject
+author-bio: false
+author-image: false
+
+# navigation menu
+show-nav-menu: true
+
+nav-menu:
+- text: Installation
+  permalink: installation
+- text: Usage
+  permalink: usage-examples
+- text: Reference
+  permalink: api-reference
+- text: Contribution
+  permalink: contribution-instructions
+
+# use false to turn off any social media links
+twitter: false
+facebook: false
+instagram: false
+github: false
+linkedin: false
+medium: false
+google-scholar: false
+email: false
+
+# footer information
+footer-msg: "Powered by Tailpages"
+footer-msg-link: https://github.com/harrywang/tailpages
+
+# jekyll plugins - no need to change
+plugins:
+    - jekyll-seo-tag
