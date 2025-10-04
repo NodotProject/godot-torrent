@@ -83,13 +83,33 @@ check_godotcpp_cache() {
 # Function to build libtorrent
 build_libtorrent() {
     echo -e "${YELLOW}Building libtorrent for ${PLATFORM}...${NC}"
-    
+
     cd libtorrent
-    
-    # Create build directory
+
+    # Check if we need to switch to compatible branch
+    local current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+    echo -e "${BLUE}Current libtorrent branch: ${current_branch}${NC}"
+
+    # Check for Boost version compatibility
+    if [ -f /usr/include/boost/version.hpp ]; then
+        local boost_version=$(grep "BOOST_LIB_VERSION" /usr/include/boost/version.hpp | cut -d'"' -f2 | tr -d '_')
+        echo -e "${BLUE}Detected Boost version: ${boost_version}${NC}"
+
+        # Boost 1.83+ has compatibility issues with libtorrent RC_2_0
+        # Use RC_1_2 for better stability
+        if [ "$current_branch" != "RC_1_2" ]; then
+            echo -e "${YELLOW}Switching to RC_1_2 branch for better Boost compatibility...${NC}"
+            git stash > /dev/null 2>&1 || true
+            git checkout RC_1_2 2>&1 | grep -v "warning: unable to rmdir" || true
+        fi
+    fi
+
+    # Create/clean build directory
+    echo -e "${YELLOW}Setting up build directory...${NC}"
+    rm -rf build
     mkdir -p build
     cd build
-    
+
     # Check for Boost dependencies first
     echo -e "${YELLOW}Checking for Boost dependencies...${NC}"
     if ! pkg-config --exists boost 2>/dev/null \
@@ -104,10 +124,14 @@ build_libtorrent() {
             echo "  brew install boost openssl"
         fi
         echo ""
-        echo -e "${YELLOW}Attempting to build with system libraries...${NC}"
+        echo -e "${YELLOW}Creating stub library...${NC}"
+        create_libtorrent_stub
+        cd ../..
+        return
     fi
-    
+
     # Configure libtorrent build based on platform
+    # IMPORTANT: Always use -DCMAKE_POSITION_INDEPENDENT_CODE=ON for shared library linking
     local cmake_flags=""
     if [ "$PLATFORM" == "linux" ]; then
         cmake_flags="-DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON"
@@ -118,21 +142,32 @@ build_libtorrent() {
         export CC=x86_64-w64-mingw32-gcc
         export CXX=x86_64-w64-mingw32-g++
     fi
-    
-    # Try to build with reduced dependencies first
+
+    # Try to build with reduced dependencies
+    echo -e "${YELLOW}Configuring CMake...${NC}"
     if cmake .. $cmake_flags \
-        -Dstatic_runtime=ON \
-        -Dbuild_shared_libs=OFF \
+        -DBUILD_SHARED_LIBS=OFF \
         -Dbuild_tests=OFF \
         -Dbuild_examples=OFF \
-        -Dbuild_tools=OFF \
-        -DTORRENT_BUILD_PYTHON_BINDINGS=OFF \
-        -DTORRENT_BUILD_EXAMPLES=OFF \
-        -DTORRENT_BUILD_TESTS=OFF; then
-        
+        -Dbuild_tools=OFF; then
+
         echo -e "${GREEN}CMake configuration successful${NC}"
-        if make -j$(nproc); then
-            echo -e "${GREEN}libtorrent build completed!${NC}"
+        echo -e "${YELLOW}Building libtorrent (this may take several minutes)...${NC}"
+
+        # Use parallel build with progress indication
+        local nproc_count=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4")
+        if make -j${nproc_count} 2>&1 | tail -20; then
+            # Verify the library was actually built and is not tiny
+            if [ -f "libtorrent-rasterbar.a" ]; then
+                local lib_size=$(wc -c < "libtorrent-rasterbar.a" 2>/dev/null | tr -d '[:space:]' || echo "0")
+                if [ "$lib_size" -gt 1048576 ]; then  # > 1MB
+                    echo -e "${GREEN}libtorrent build completed successfully! (${lib_size} bytes)${NC}"
+                else
+                    echo -e "${YELLOW}Warning: Library seems too small (${lib_size} bytes), may be incomplete${NC}"
+                fi
+            else
+                echo -e "${RED}Library file not found after build${NC}"
+            fi
         else
             echo -e "${RED}libtorrent build failed!${NC}"
             echo -e "${YELLOW}Trying to create a minimal stub library...${NC}"
@@ -143,7 +178,7 @@ build_libtorrent() {
         echo -e "${YELLOW}Creating a minimal stub library for development...${NC}"
         create_libtorrent_stub
     fi
-    
+
     cd ../..
 }
 
@@ -269,41 +304,40 @@ EOF
 # Function to check if libtorrent cache is valid
 check_libtorrent_cache() {
     echo -e "${YELLOW}Checking libtorrent cache...${NC}"
-    
-    local lib_ext=""
-    if [ "$PLATFORM" == "windows" ]; then
-        lib_ext="a"
-    elif [ "$PLATFORM" == "macos" ]; then
-        lib_ext="a"
-    else
-        lib_ext="a"
-    fi
+
+    local lib_ext="a"
 
     local required_files=(
         "libtorrent/build/libtorrent-rasterbar.${lib_ext}"
         "libtorrent/include"
     )
-    
+
     for file in "${required_files[@]}"; do
         if [ ! -e "$file" ]; then
             echo -e "${RED}Cache miss: $file not found${NC}"
             return 1
         fi
     done
-    
-    # Additional check for library file size (should be > 1KB for real library)
+
+    # Check library file size (should be > 1MB for real library, > 1KB for stub)
     local lib_file="libtorrent/build/libtorrent-rasterbar.${lib_ext}"
     if [ -f "$lib_file" ]; then
         local file_size=$(wc -c < "$lib_file" 2>/dev/null | tr -d '[:space:]' || echo "0")
-        if [ "$file_size" -gt 1024 ]; then
-            echo -e "${GREEN}libtorrent cache is valid! (${file_size} bytes)${NC}"
+
+        # Check if it's a real library (> 1MB) or just a stub (< 100KB)
+        if [ "$file_size" -gt 1048576 ]; then
+            echo -e "${GREEN}libtorrent cache is valid! (${file_size} bytes - real library)${NC}"
+            return 0
+        elif [ "$file_size" -gt 1024 ]; then
+            echo -e "${YELLOW}libtorrent stub library found (${file_size} bytes)${NC}"
+            echo -e "${YELLOW}To build full libtorrent, delete libtorrent/build and re-run${NC}"
             return 0
         else
-            echo -e "${YELLOW}libtorrent library file too small (${file_size} bytes), rebuilding...${NC}"
+            echo -e "${RED}libtorrent library file too small (${file_size} bytes), rebuilding...${NC}"
             return 1
         fi
     fi
-    
+
     echo -e "${GREEN}libtorrent cache is valid!${NC}"
     return 0
 }

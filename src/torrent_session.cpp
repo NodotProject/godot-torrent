@@ -58,6 +58,7 @@ void TorrentSession::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_session_stats"), &TorrentSession::get_session_stats);
     ClassDB::bind_method(D_METHOD("get_alerts"), &TorrentSession::get_alerts);
     ClassDB::bind_method(D_METHOD("clear_alerts"), &TorrentSession::clear_alerts);
+    ClassDB::bind_method(D_METHOD("post_torrent_updates"), &TorrentSession::post_torrent_updates);
 }
 
 TorrentSession::TorrentSession() : _session(nullptr) {
@@ -75,15 +76,36 @@ bool TorrentSession::start_session() {
     try {
         libtorrent::settings_pack settings;
         settings.set_str(libtorrent::settings_pack::user_agent, "Godot-Torrent/1.0.0");
-        settings.set_str(libtorrent::settings_pack::listen_interfaces, "0.0.0.0:6881");
-        settings.set_bool(libtorrent::settings_pack::enable_dht, true);
+
+        // Listen on all interfaces (0.0.0.0) with random port for incoming connections
+        settings.set_str(libtorrent::settings_pack::listen_interfaces, "0.0.0.0:6881,[::]:6881");
+
+        // Don't enable DHT by default to avoid blocking during startup
+        // User should call start_dht() explicitly
+        settings.set_bool(libtorrent::settings_pack::enable_dht, false);
         settings.set_bool(libtorrent::settings_pack::enable_lsd, true);
         settings.set_bool(libtorrent::settings_pack::enable_upnp, true);
         settings.set_bool(libtorrent::settings_pack::enable_natpmp, true);
+
         settings.set_int(libtorrent::settings_pack::alert_mask,
             libtorrent::alert::error_notification |
             libtorrent::alert::status_notification |
-            libtorrent::alert::storage_notification);
+            libtorrent::alert::storage_notification |
+            libtorrent::alert::tracker_notification);
+
+        // Increase alert queue size to prevent blocking
+        settings.set_int(libtorrent::settings_pack::alert_queue_size, 10000);
+
+        // Connection settings for better peer discovery
+        settings.set_int(libtorrent::settings_pack::connections_limit, 200);
+        settings.set_int(libtorrent::settings_pack::active_downloads, 3);
+        settings.set_int(libtorrent::settings_pack::active_seeds, 5);
+        settings.set_int(libtorrent::settings_pack::active_limit, 15);
+
+        // Fast shutdown settings (don't wait for trackers)
+        settings.set_int(libtorrent::settings_pack::stop_tracker_timeout, 1);
+        settings.set_int(libtorrent::settings_pack::auto_scrape_interval, 1800);
+        settings.set_int(libtorrent::settings_pack::auto_scrape_min_interval, 900);
 
         _session = new libtorrent::session(settings);
         return true;
@@ -113,8 +135,48 @@ bool TorrentSession::start_session_with_settings(Dictionary settings) {
 
 void TorrentSession::stop_session() {
     if (_session) {
-        delete _session;
-        _session = nullptr;
+        try {
+            // Proper libtorrent shutdown sequence:
+            // 1. Pause session to stop all activity
+            _session->pause();
+
+            // 2. Remove all torrents immediately without waiting for trackers
+            std::vector<libtorrent::torrent_handle> torrents = _session->get_torrents();
+            for (auto& handle : torrents) {
+                try {
+                    // Remove without announcing to trackers (avoid network delays)
+                    _session->remove_torrent(handle,
+                        libtorrent::session::delete_files |
+                        libtorrent::session_handle::delete_partfile);
+                } catch (...) {
+                    // Ignore errors removing individual torrents
+                }
+            }
+
+            // 3. Apply settings to speed up shutdown
+            libtorrent::settings_pack shutdown_settings;
+            // Don't wait for tracker announces on shutdown
+            shutdown_settings.set_int(libtorrent::settings_pack::stop_tracker_timeout, 0);
+            shutdown_settings.set_bool(libtorrent::settings_pack::announce_to_all_trackers, false);
+            shutdown_settings.set_bool(libtorrent::settings_pack::announce_to_all_tiers, false);
+            _session->apply_settings(shutdown_settings);
+
+            // 4. Call abort() to get a session_proxy for async shutdown
+            // 5. Delete the session (non-blocking)
+            // 6. session_proxy destructor will block until shutdown completes
+            //    (but should be fast now that trackers are skipped)
+            auto proxy = _session->abort();
+            delete _session;
+            _session = nullptr;
+            // proxy destructor blocks here until session is fully shut down
+        } catch (const std::exception& e) {
+            UtilityFunctions::push_error("Error during session shutdown: " + String(e.what()));
+            // Force cleanup even on error
+            try {
+                delete _session;
+            } catch (...) {}
+            _session = nullptr;
+        }
     }
 }
 
@@ -184,6 +246,14 @@ void TorrentSession::start_dht() {
     try {
         libtorrent::settings_pack settings;
         settings.set_bool(libtorrent::settings_pack::enable_dht, true);
+
+        // Set DHT bootstrap nodes for better connectivity
+        settings.set_str(libtorrent::settings_pack::dht_bootstrap_nodes,
+            "dht.transmissionbt.com:6881,"
+            "router.bittorrent.com:6881,"
+            "router.utorrent.com:6881,"
+            "dht.libtorrent.org:25401");
+
         _session->apply_settings(settings);
     } catch (const std::exception& e) {
         UtilityFunctions::push_error("Failed to start DHT: " + String(e.what()));
@@ -385,13 +455,26 @@ Ref<TorrentHandle> TorrentSession::add_torrent_file(PackedByteArray torrent_data
         return Ref<TorrentHandle>();
     }
 
+    // Validate save_path
+    if (save_path.is_empty()) {
+        UtilityFunctions::push_error("Save path cannot be empty");
+        return Ref<TorrentHandle>();
+    }
+
+    // Check for invalid path patterns
+    if (save_path.contains("..") || save_path.contains("//")) {
+        UtilityFunctions::push_error("Invalid save_path: contains invalid characters");
+        return Ref<TorrentHandle>();
+    }
+
     try {
         const char* data_ptr = reinterpret_cast<const char*>(torrent_data.ptr());
 
         libtorrent::error_code ec;
         auto torrent_info = std::make_shared<libtorrent::torrent_info>(
-            libtorrent::span<char const>(data_ptr, torrent_data.size()),
-            libtorrent::from_span
+            data_ptr,
+            torrent_data.size(),
+            ec
         );
 
         if (ec) {
@@ -428,6 +511,18 @@ Ref<TorrentHandle> TorrentSession::add_torrent_file(PackedByteArray torrent_data
 Ref<TorrentHandle> TorrentSession::add_magnet_uri(String magnet_uri, String save_path) {
     if (!_session) {
         UtilityFunctions::push_error("Session not running");
+        return Ref<TorrentHandle>();
+    }
+
+    // Validate save_path
+    if (save_path.is_empty()) {
+        UtilityFunctions::push_error("Save path cannot be empty");
+        return Ref<TorrentHandle>();
+    }
+
+    // Check for invalid path patterns
+    if (save_path.contains("..") || save_path.contains("//")) {
+        UtilityFunctions::push_error("Invalid save_path: contains invalid characters");
         return Ref<TorrentHandle>();
     }
 
@@ -537,6 +632,34 @@ Array TorrentSession::get_alerts() {
                 alert_dict["message"] = String(alert->message().c_str());
                 alert_dict["type"] = alert->type();
                 alert_dict["what"] = String(alert->what());
+
+                // Parse state_update_alert to extract torrent status
+                if (auto* status_alert = libtorrent::alert_cast<libtorrent::state_update_alert>(alert)) {
+                    Array status_array;
+                    for (const auto& status : status_alert->status) {
+                        Dictionary status_dict;
+
+                        // Store info_hash as hex string for handle matching
+                        status_dict["info_hash"] = String(libtorrent::aux::to_hex(status.info_hash).c_str());
+                        status_dict["state"] = (int)status.state;
+                        status_dict["paused"] = (bool)(status.flags & libtorrent::torrent_flags::paused);
+                        status_dict["progress"] = status.progress;
+                        status_dict["download_rate"] = status.download_rate;
+                        status_dict["upload_rate"] = status.upload_rate;
+                        status_dict["num_peers"] = status.num_peers;
+                        status_dict["num_seeds"] = status.num_seeds;
+                        status_dict["total_download"] = (int64_t)status.total_download;
+                        status_dict["total_upload"] = (int64_t)status.total_upload;
+                        status_dict["total_wanted"] = (int64_t)status.total_wanted;
+                        status_dict["total_done"] = (int64_t)status.total_done;
+                        status_dict["is_finished"] = status.is_finished;
+                        status_dict["is_seeding"] = status.is_seeding;
+
+                        status_array.append(status_dict);
+                    }
+                    alert_dict["torrent_status"] = status_array;
+                }
+
                 result.append(alert_dict);
             }
         }
@@ -556,6 +679,16 @@ void TorrentSession::clear_alerts() {
         _session->pop_alerts(&alerts);
     } catch (const std::exception& e) {
         UtilityFunctions::push_error("Failed to clear alerts: " + String(e.what()));
+    }
+}
+
+void TorrentSession::post_torrent_updates() {
+    if (!_session) return;
+
+    try {
+        _session->post_torrent_updates();
+    } catch (const std::exception& e) {
+        UtilityFunctions::push_error("Failed to post torrent updates: " + String(e.what()));
     }
 }
 

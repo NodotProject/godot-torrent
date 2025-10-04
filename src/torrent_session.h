@@ -78,6 +78,7 @@ public:
     // Alert system
     Array get_alerts();
     void clear_alerts();
+    void post_torrent_updates();
 
 private:
     // The actual libtorrent session

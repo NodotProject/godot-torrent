@@ -139,6 +139,11 @@ bool TorrentStatus::validate_status() const {
     return _is_valid && (_status_ptr != nullptr || _is_stub_mode);
 }
 
+bool TorrentStatus::validate_status_unsafe() const {
+    // Same as validate_status but without locking (caller must hold lock)
+    return _is_valid && (_status_ptr != nullptr || _is_stub_mode);
+}
+
 bool TorrentStatus::is_cache_valid() const {
     auto current_time = Time::get_singleton()->get_ticks_msec();
     return (current_time - _last_update_time) < CACHE_VALIDITY_MS;
@@ -334,11 +339,17 @@ void TorrentStatus::_set_internal_status(const Variant& status) {
         if (status.get_type() != Variant::NIL) {
             if (!_is_stub_mode) {
 #ifndef TORRENT_STUB_MODE
-                // In real mode, this would need proper conversion from Variant
-                // For now, we'll treat any non-null Variant as valid
-                _status_ptr = nullptr; // TODO: Implement proper status conversion
-                _is_valid = false; // TODO: Set based on actual status validity
-                log_status_operation("Real libtorrent status set (conversion needed)");
+                // In real mode, extract the pointer from the uint64_t
+                if (status.get_type() == Variant::INT) {
+                    uint64_t ptr_value = status;
+                    _status_ptr = reinterpret_cast<void*>(ptr_value);
+                    _is_valid = (_status_ptr != nullptr);
+                    log_status_operation("Real libtorrent status set from pointer");
+                } else {
+                    _status_ptr = nullptr;
+                    _is_valid = false;
+                    log_status_operation("Invalid status type - expected INT");
+                }
 #endif
             } else {
                 // In stub mode, any non-null Variant makes it valid
@@ -352,9 +363,24 @@ void TorrentStatus::_set_internal_status(const Variant& status) {
             log_status_operation("Status cleared (set to null)");
         }
         
-        // Force cache update
+        // Force cache update (no lock needed, we already have it)
         _last_update_time = 0;
-        update_cached_status();
+        // Don't call update_cached_status() here as it would try to lock again (deadlock)
+        // Instead, manually trigger update without locking
+        if (!validate_status_unsafe()) {
+            return;
+        }
+
+        try {
+            if (!_is_stub_mode) {
+                map_libtorrent_status();
+            } else {
+                create_stub_status();
+            }
+            _last_update_time = Time::get_singleton()->get_ticks_msec();
+        } catch (const std::exception& e) {
+            handle_status_error("_set_internal_status cache update", e);
+        }
     } catch (const std::exception& e) {
         handle_status_error("_set_internal_status", e);
         _status_ptr = nullptr;

@@ -173,6 +173,7 @@ private:
     
     // Validation helpers
     bool validate_status() const;
+    bool validate_status_unsafe() const; // Internal use only - caller must hold lock
 };
 
 #endif // TORRENT_STATUS_H

@@ -11,6 +11,7 @@
 #ifndef TORRENT_STUB_MODE
     #include <libtorrent/torrent_handle.hpp>
     #include <libtorrent/torrent_status.hpp>
+    #include <libtorrent/torrent_info.hpp>
     #include <libtorrent/peer_info.hpp>
     #include <libtorrent/hex.hpp>
 #endif
@@ -67,6 +68,7 @@ TorrentHandle::TorrentHandle() {
 
 TorrentHandle::~TorrentHandle() {
     try {
+        std::lock_guard<std::mutex> lock(_handle_mutex);
         cleanup_handle();
     } catch (...) {
         // Ignore exceptions in destructor to prevent crashes
@@ -82,8 +84,8 @@ void TorrentHandle::detect_build_mode() {
 }
 
 void TorrentHandle::cleanup_handle() {
-    std::lock_guard<std::mutex> lock(_handle_mutex);
-    
+    // NOTE: Caller must hold _handle_mutex lock
+
     try {
         if (_handle_ptr && !_is_stub_mode) {
 #ifndef TORRENT_STUB_MODE
@@ -224,33 +226,39 @@ Ref<TorrentInfo> TorrentHandle::get_torrent_info() {
 }
 
 Ref<TorrentStatus> TorrentHandle::get_status() {
+    UtilityFunctions::print("DEBUG: get_status() called, about to lock");
     std::lock_guard<std::mutex> lock(_handle_mutex);
-    
+    UtilityFunctions::print("DEBUG: lock acquired");
+
     Ref<TorrentStatus> status;
     status.instantiate();
-    
+    UtilityFunctions::print("DEBUG: status instantiated");
+
     if (!validate_handle()) {
         log_handle_operation("Cannot get status: Invalid handle", false);
         return status;
     }
-    
+    UtilityFunctions::print("DEBUG: handle validated");
+
     try {
         if (!_is_stub_mode) {
 #ifndef TORRENT_STUB_MODE
             libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
-            
+            UtilityFunctions::print("DEBUG: About to call lt handle->status()");
+
             // Get real-time status from libtorrent
-            libtorrent::torrent_status lt_status = handle->status();
-            
+            // Use empty status_flags_t{} to get basic cached status (non-blocking)
+            libtorrent::torrent_status lt_status = handle->status(libtorrent::status_flags_t{});
+            UtilityFunctions::print("DEBUG: lt handle->status() returned");
+
             // Create a copy of the status to pass to TorrentStatus
             libtorrent::torrent_status* status_copy = new libtorrent::torrent_status(lt_status);
-            
-            // Set the real status in TorrentStatus object
-            Dictionary status_dict;
-            status_dict["real_status"] = true;
-            status_dict["libtorrent_ptr"] = (uint64_t)status_copy; // Store pointer for real mode
-            status->_set_internal_status(status_dict);
-            
+            UtilityFunctions::print("DEBUG: status copied");
+
+            // Pass the pointer directly as uint64_t (Variant will accept it as an int)
+            status->_set_internal_status((uint64_t)status_copy);
+            UtilityFunctions::print("DEBUG: internal status set");
+
             log_handle_operation("Real torrent status retrieved");
 #endif
         } else {
@@ -263,7 +271,7 @@ Ref<TorrentStatus> TorrentHandle::get_status() {
     } catch (const std::exception& e) {
         handle_operation_error("get_status", e);
     }
-    
+
     return status;
 }
 
@@ -628,19 +636,32 @@ void TorrentHandle::clear_error() {
 // Internal methods for libtorrent integration
 void TorrentHandle::_set_internal_handle(const Variant& handle) {
     std::lock_guard<std::mutex> lock(_handle_mutex);
-    
+
     try {
         // Clean up existing handle
         cleanup_handle();
-        
+
         if (handle.get_type() != Variant::NIL) {
             if (!_is_stub_mode) {
 #ifndef TORRENT_STUB_MODE
-                // In real mode, this would need proper conversion from Variant
-                // For now, we'll treat any non-null Variant as valid
-                _handle_ptr = nullptr; // TODO: Implement proper handle conversion
-                _is_valid = false; // TODO: Set based on actual handle validity
-                log_handle_operation("Real libtorrent handle set (conversion needed)");
+                // Extract handle pointer from Dictionary
+                if (handle.get_type() == Variant::DICTIONARY) {
+                    Dictionary handle_dict = handle;
+                    if (handle_dict.has("libtorrent_ptr")) {
+                        uint64_t ptr_value = handle_dict["libtorrent_ptr"];
+                        _handle_ptr = reinterpret_cast<void*>(ptr_value);
+                        _is_valid = (_handle_ptr != nullptr);
+                        log_handle_operation("Real libtorrent handle set from pointer");
+                    } else {
+                        _handle_ptr = nullptr;
+                        _is_valid = false;
+                        log_handle_operation("Invalid handle data: missing libtorrent_ptr", false);
+                    }
+                } else {
+                    _handle_ptr = nullptr;
+                    _is_valid = false;
+                    log_handle_operation("Invalid handle data: not a Dictionary", false);
+                }
 #endif
             } else {
                 // In stub mode, any non-null Variant makes it valid
@@ -662,11 +683,13 @@ void TorrentHandle::_set_internal_handle(const Variant& handle) {
 
 Variant TorrentHandle::_get_internal_handle() const {
     std::lock_guard<std::mutex> lock(_handle_mutex);
-    
+
     if (_handle_ptr && _is_valid) {
         if (!_is_stub_mode) {
-            // In real mode, would return proper handle representation
-            return Variant(); // TODO: Implement proper handle conversion
+            // Return handle pointer as Dictionary
+            Dictionary handle_dict;
+            handle_dict["libtorrent_ptr"] = (uint64_t)_handle_ptr;
+            return handle_dict;
         } else {
             // In stub mode, return a dummy object
             Dictionary stub_handle;
@@ -675,7 +698,7 @@ Variant TorrentHandle::_get_internal_handle() const {
             return stub_handle;
         }
     }
-    
+
     return Variant(); // Return null variant for invalid handle
 }
 
