@@ -5,7 +5,7 @@
 #include <godot_cpp/godot.hpp>
 
 // Include your classes here when implemented
-#include "torrent_session_stub.h"
+#include "torrent_session.h"
 #include "torrent_handle.h"
 #include "torrent_info.h"
 #include "torrent_status.h"

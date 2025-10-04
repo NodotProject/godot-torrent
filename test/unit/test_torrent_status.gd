@@ -1,7 +1,13 @@
 extends GutTest
 
-# Unit tests for Issue #7: TorrentHandle - Status Retrieval
-# These tests validate real-time torrent status retrieval functionality
+# Unit tests for TorrentHandle - Status Retrieval
+#
+# IMPORTANT: Pure Wrapper Architecture
+# This project is now a pure wrapper around libtorrent. Tests that create dummy
+# handles using _set_internal_handle({}) will not work as expected.
+#
+# Real handles must come from TorrentSession.add_torrent_file() or add_magnet_uri()
+# See test/README.md for more information.
 
 var handle: TorrentHandle
 var status: TorrentStatus
@@ -15,16 +21,16 @@ func after_each():
 	handle = null
 	status = null
 
-# Issue #7 Tests: TorrentHandle - Status Retrieval
+# TorrentStatus Tests
 
-func test_issue7_real_status_query():
+func test_real_status_query():
 	# Validates: Implement get_status() with real libtorrent status query
 	
 	status = handle.get_status()
 	assert_not_null(status, "get_status() should return a TorrentStatus object")
 	assert_true(status is TorrentStatus, "Returned object should be TorrentStatus")
 
-func test_issue7_status_object_mapping():
+func test_status_object_mapping():
 	# Validates: Map libtorrent::torrent_status to TorrentStatus object
 	
 	status = handle.get_status()
@@ -42,7 +48,7 @@ func test_issue7_status_object_mapping():
 	assert_true(typeof(finished) == TYPE_BOOL, "Finished should be boolean")
 	assert_true(typeof(seeding) == TYPE_BOOL, "Seeding should be boolean")
 
-func test_issue7_all_status_fields():
+func test_all_status_fields():
 	# Validates: Populate all TorrentStatus fields with real data
 	
 	status = handle.get_status()
@@ -60,7 +66,7 @@ func test_issue7_all_status_fields():
 	assert_true(total_wanted >= 0, "Total wanted should be non-negative")
 	assert_true(total_wanted_done >= 0, "Total wanted done should be non-negative")
 
-func test_issue7_state_string_mapping():
+func test_state_string_mapping():
 	# Validates: Implement state string mapping
 	
 	status = handle.get_status()
@@ -80,7 +86,7 @@ func test_issue7_state_string_mapping():
 	
 	assert_true(state_string in valid_states, "State string should be valid: " + state_string)
 
-func test_issue7_progress_calculation():
+func test_progress_calculation():
 	# Validates: Add progress calculation
 	
 	status = handle.get_status()
@@ -94,7 +100,7 @@ func test_issue7_progress_calculation():
 		var difference = abs(progress - calculated_progress)
 		assert_true(difference < 0.01, "Progress calculation should be consistent")
 
-func test_issue7_rate_information():
+func test_rate_information():
 	# Validates: Add rate information (download/upload)
 	
 	status = handle.get_status()
@@ -109,7 +115,7 @@ func test_issue7_rate_information():
 	assert_true(download_payload_rate >= 0, "Download payload rate should be non-negative")
 	assert_true(upload_payload_rate >= 0, "Upload payload rate should be non-negative")
 
-func test_issue7_peer_counts():
+func test_peer_counts():
 	# Validates: Add peer counts
 	
 	status = handle.get_status()
@@ -124,7 +130,7 @@ func test_issue7_peer_counts():
 	assert_true(num_connections >= 0, "Number of connections should be non-negative")
 	assert_true(connections_limit > 0, "Connections limit should be positive")
 
-func test_issue7_time_tracking():
+func test_time_tracking():
 	# Validates: Add time tracking
 	
 	status = handle.get_status()
@@ -139,7 +145,7 @@ func test_issue7_time_tracking():
 	assert_true(time_since_download >= 0, "Time since download should be non-negative")
 	assert_true(time_since_upload >= 0, "Time since upload should be non-negative")
 
-func test_issue7_real_time_updates():
+func test_real_time_updates():
 	# Validates: Test status updates in real-time
 	
 	# Get initial status
@@ -157,7 +163,7 @@ func test_issue7_real_time_updates():
 	# In real mode, this would show actual time progression
 	assert_true(updated_time >= initial_time, "Time should progress or stay same")
 
-func test_issue7_performance_optimization():
+func test_performance_optimization():
 	# Validates: Optimize status query frequency / Performance is acceptable (< 1ms per query)
 	
 	var start_time = Time.get_ticks_msec()
@@ -165,9 +171,9 @@ func test_issue7_performance_optimization():
 	# Perform multiple status queries
 	for i in range(100):
 		status = handle.get_status()
-		var _ = status.get_progress()
-		var _ = status.get_download_rate()
-		var _ = status.get_num_peers()
+		var _progress = status.get_progress()
+		var _rate = status.get_download_rate()
+		var _peers = status.get_num_peers()
 	
 	var end_time = Time.get_ticks_msec()
 	var total_time = end_time - start_time
@@ -176,7 +182,7 @@ func test_issue7_performance_optimization():
 	# Should be well under 1ms per query (accounting for stub mode overhead)
 	assert_true(avg_time_per_query < 5.0, "Average query time should be under 5ms, got: " + str(avg_time_per_query) + "ms")
 
-func test_issue7_status_dictionary():
+func test_status_dictionary():
 	# Validates: Status values match libtorrent's internal state
 	
 	status = handle.get_status()
@@ -190,7 +196,7 @@ func test_issue7_status_dictionary():
 	assert_true(status_dict.has("num_peers"), "Dictionary should contain num_peers")
 	assert_true(status_dict.has("mode"), "Dictionary should contain mode")
 
-func test_issue7_enhanced_status_fields():
+func test_enhanced_status_fields():
 	# Validates: Enhanced status information is available
 	
 	status = handle.get_status()
@@ -212,7 +218,7 @@ func test_issue7_enhanced_status_fields():
 	assert_true(list_seeds >= 0, "List seeds should be non-negative")
 	assert_true(connect_candidates >= 0, "Connect candidates should be non-negative")
 
-func test_issue7_downloading_info():
+func test_downloading_info():
 	# Validates: Current downloading piece/block information
 	
 	status = handle.get_status()
@@ -228,7 +234,7 @@ func test_issue7_downloading_info():
 	assert_true(downloading_progress >= 0, "Downloading progress should be non-negative")
 	assert_true(downloading_total >= 0, "Downloading total should be non-negative")
 
-func test_issue7_error_handling():
+func test_error_handling():
 	# Validates: Error handling for invalid handles
 	
 	var invalid_handle = TorrentHandle.new()
@@ -243,7 +249,7 @@ func test_issue7_error_handling():
 	assert_true(progress >= 0.0, "Invalid handle should have safe progress value")
 	assert_not_null(name, "Invalid handle should have safe name value")
 
-func test_issue7_cache_validity():
+func test_cache_validity():
 	# Validates: Caching mechanism works correctly
 	
 	status = handle.get_status()
@@ -253,7 +259,7 @@ func test_issue7_cache_validity():
 	var cache_age = status_dict["cache_age_ms"]
 	assert_true(cache_age >= 0, "Cache age should be non-negative")
 
-func test_issue7_consistency():
+func test_consistency():
 	# Validates: Status values are internally consistent
 	
 	status = handle.get_status()

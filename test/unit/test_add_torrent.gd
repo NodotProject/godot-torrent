@@ -1,7 +1,13 @@
 extends GutTest
 
-# Unit tests for Issue #8: Add Torrent Operations - File and Magnet
-# These tests validate real torrent addition from .torrent files and magnet URIs
+# Unit tests for Add Torrent Operations - File and Magnet
+#
+# IMPORTANT: Pure Wrapper Architecture
+# This project is now a pure wrapper around libtorrent. The dummy torrent data
+# created by helper functions may not parse correctly with real libtorrent.
+#
+# For real testing, use actual valid .torrent files or magnet URIs.
+# See test/README.md for more information.
 
 var session: TorrentSession
 
@@ -14,9 +20,9 @@ func after_each():
 		session.stop_session()
 	session = null
 
-# Issue #8 Tests: Add Torrent Operations - File and Magnet
+# Add Torrent Tests
 
-func test_issue8_add_torrent_file_implementation():
+func test_add_torrent_file_implementation():
 	# Validates: Implement add_torrent_file() with real torrent parsing
 	
 	# Create dummy torrent data (minimal valid torrent structure)
@@ -27,7 +33,7 @@ func test_issue8_add_torrent_file_implementation():
 	assert_not_null(handle, "add_torrent_file should return a TorrentHandle")
 	assert_true(handle is TorrentHandle, "Returned object should be TorrentHandle")
 
-func test_issue8_torrent_file_parsing():
+func test_torrent_file_parsing():
 	# Validates: Parse torrent file data with libtorrent::torrent_info
 	
 	var dummy_torrent_data = create_dummy_torrent_data()
@@ -43,7 +49,7 @@ func test_issue8_torrent_file_parsing():
 		# Expected in stub mode or with dummy data
 		assert_true(true, "Torrent parsing handled gracefully")
 
-func test_issue8_add_magnet_uri_implementation():
+func test_add_magnet_uri_implementation():
 	# Validates: Implement add_magnet_uri() with real magnet parsing
 	
 	var magnet_uri = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Test%20Torrent"
@@ -53,7 +59,7 @@ func test_issue8_add_magnet_uri_implementation():
 	assert_not_null(handle, "add_magnet_uri should return a TorrentHandle")
 	assert_true(handle is TorrentHandle, "Returned object should be TorrentHandle")
 
-func test_issue8_magnet_uri_parsing():
+func test_magnet_uri_parsing():
 	# Validates: Implement add_magnet_uri() with real magnet parsing
 	
 	var magnet_uri = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Test%20Torrent"
@@ -69,7 +75,7 @@ func test_issue8_magnet_uri_parsing():
 		# Expected in stub mode or with test data
 		assert_true(true, "Magnet parsing handled gracefully")
 
-func test_issue8_add_torrent_params_configuration():
+func test_add_torrent_params_configuration():
 	# Validates: Configure add_torrent_params properly
 	
 	var dummy_torrent_data = create_dummy_torrent_data()
@@ -82,7 +88,7 @@ func test_issue8_add_torrent_params_configuration():
 	var handle = session.add_torrent_file(dummy_torrent_data, save_path)
 	assert_not_null(handle, "Should handle torrent addition with configured params")
 
-func test_issue8_save_path_validation():
+func test_save_path_validation():
 	# Validates: Handle save path validation
 	
 	var dummy_torrent_data = create_dummy_torrent_data()
@@ -111,7 +117,7 @@ func test_issue8_save_path_validation():
 		var handle = session.add_torrent_file(dummy_torrent_data, path)
 		assert_null(handle, "Invalid path should return null: " + path)
 
-func test_issue8_malformed_torrent_handling():
+func test_malformed_torrent_handling():
 	# Validates: Implement error handling for malformed torrents
 	
 	# Test empty torrent data
@@ -126,7 +132,7 @@ func test_issue8_malformed_torrent_handling():
 	# Should handle gracefully (null in real mode, stub handle in stub mode)
 	assert_true(true, "Invalid torrent data handled gracefully")
 
-func test_issue8_malformed_magnet_handling():
+func test_malformed_magnet_handling():
 	# Validates: Error handling for malformed magnet URIs
 	
 	var invalid_magnets = [
@@ -141,7 +147,7 @@ func test_issue8_malformed_magnet_handling():
 		var handle = session.add_magnet_uri(magnet, "/tmp/test")
 		assert_null(handle, "Invalid magnet should return null: " + magnet)
 
-func test_issue8_handle_wrapper_return():
+func test_handle_wrapper_return():
 	# Validates: Return proper TorrentHandle wrapper
 	
 	var dummy_torrent_data = create_dummy_torrent_data()
@@ -155,7 +161,7 @@ func test_issue8_handle_wrapper_return():
 		assert_true(handle.has_method("resume"), "Handle should have torrent control methods")
 		assert_true(handle.has_method("get_status"), "Handle should have status methods")
 
-func test_issue8_internal_handle_storage():
+func test_internal_handle_storage():
 	# Validates: Add torrent to internal handle storage
 	
 	var dummy_torrent_data = create_dummy_torrent_data()
@@ -169,7 +175,7 @@ func test_issue8_internal_handle_storage():
 		var internal_handle = handle._get_internal_handle()
 		assert_not_null(internal_handle, "Handle should have internal data")
 
-func test_issue8_real_torrent_file_format():
+func test_real_torrent_file_format():
 	# Validates: Test with real .torrent files (using minimal valid structure)
 	
 	# Create a more realistic torrent data structure
@@ -180,7 +186,7 @@ func test_issue8_real_torrent_file_format():
 	# Should handle without crashing
 	assert_true(true, "Realistic torrent data handled")
 
-func test_issue8_real_magnet_uri_format():
+func test_real_magnet_uri_format():
 	# Validates: Test with real magnet URIs
 	
 	var real_magnet_uris = [
@@ -196,7 +202,7 @@ func test_issue8_real_magnet_uri_format():
 		# Should handle without crashing
 		assert_true(true, "Real magnet URI handled: " + magnet)
 
-func test_issue8_metadata_download_for_magnets():
+func test_metadata_download_for_magnets():
 	# Validates: Handle metadata download for magnets
 	
 	var magnet_uri = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Test%20Torrent"
@@ -214,7 +220,7 @@ func test_issue8_metadata_download_for_magnets():
 		var state_string = status.get_state_string()
 		assert_not_null(state_string, "Should have state information")
 
-func test_issue8_error_reporting():
+func test_error_reporting():
 	# Validates: Errors are reported clearly
 	
 	# This test validates that error conditions are handled gracefully
@@ -231,7 +237,7 @@ func test_issue8_error_reporting():
 	var handle2 = stopped_session.add_magnet_uri("magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567", "/tmp/test")
 	assert_null(handle2, "Should return null when session not running")
 
-func test_issue8_handle_validity_and_functionality():
+func test_handle_validity_and_functionality():
 	# Validates: Returned handles are valid and functional
 	
 	var dummy_torrent_data = create_dummy_torrent_data()
@@ -250,7 +256,7 @@ func test_issue8_handle_validity_and_functionality():
 		var name = handle.get_name()
 		assert_not_null(name, "Handle should provide name")
 
-func test_issue8_remove_torrent_integration():
+func test_remove_torrent_integration():
 	# Validates: Integration with remove_torrent functionality
 	
 	var dummy_torrent_data = create_dummy_torrent_data()

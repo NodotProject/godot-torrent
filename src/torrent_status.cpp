@@ -204,20 +204,20 @@ void TorrentStatus::map_libtorrent_status() {
         _cached_status.connections_limit = lt_status->connections_limit;
         
         // Time information
-        _cached_status.active_time = lt_status->active_time.count();
-        _cached_status.seeding_time = lt_status->seeding_time.count();
-        _cached_status.time_since_download = lt_status->time_since_download.count();
-        _cached_status.time_since_upload = lt_status->time_since_upload.count();
+        _cached_status.active_time = lt_status->active_time;
+        _cached_status.seeding_time = lt_status->seeding_time;
+        _cached_status.time_since_download = lt_status->time_since_download;
+        _cached_status.time_since_upload = lt_status->time_since_upload;
         
         // Piece information
         _cached_status.num_pieces = lt_status->num_pieces;
-        _cached_status.pieces_downloaded = lt_status->num_pieces - lt_status->pieces_left;
+        _cached_status.pieces_downloaded = lt_status->num_pieces - lt_status->num_incomplete;
         
         // Queue information
         _cached_status.queue_position = lt_status->queue_position;
         
         // Error information
-        _cached_status.error = String(lt_status->error.message().c_str());
+        _cached_status.error = String(lt_status->error.c_str());
         
         // Additional information
         _cached_status.save_path = String(lt_status->save_path.c_str());
@@ -227,8 +227,8 @@ void TorrentStatus::map_libtorrent_status() {
         // Enhanced status information
         _cached_status.all_time_download = lt_status->all_time_download;
         _cached_status.all_time_upload = lt_status->all_time_upload;
-        _cached_status.availability = lt_status->pieces_left > 0 ? 
-            static_cast<float>(lt_status->num_pieces - lt_status->pieces_left) / lt_status->num_pieces : 1.0f;
+        _cached_status.availability = lt_status->num_incomplete > 0 ?
+            static_cast<float>(lt_status->num_pieces - lt_status->num_incomplete) / lt_status->num_pieces : 1.0f;
         _cached_status.block_size = lt_status->block_size;
         _cached_status.list_peers = lt_status->list_peers;
         _cached_status.list_seeds = lt_status->list_seeds;
