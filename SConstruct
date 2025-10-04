@@ -96,17 +96,31 @@ else:
 godot_cpp_lib = f"{lib_prefix}godot-cpp.{platform}.{target}.{arch}{lib_ext}"
 env.Append(LIBS=[File(os.path.join('godot-cpp', 'bin', godot_cpp_lib))])
 
-# Phase 2: Libtorrent library linking (prepared but not yet activated)  
-# env.Append(LIBS=['torrent-rasterbar'])  # Will be enabled in Phase 3
+# Phase 3: Libtorrent library linking (ENABLED)
+# Check if we have a built libtorrent library
+libtorrent_lib_path = os.path.join('libtorrent', 'build', 'libtorrent-rasterbar.a')
+if os.path.exists(libtorrent_lib_path):
+    env.Append(LIBS=[File(libtorrent_lib_path)])
+    print("Using custom built libtorrent:", libtorrent_lib_path)
+else:
+    # Try to find system libtorrent
+    conf = Configure(env)
+    if conf.CheckLib('torrent-rasterbar'):
+        env.Append(LIBS=['torrent-rasterbar'])
+        print("Using system libtorrent-rasterbar")
+    else:
+        print("WARNING: libtorrent-rasterbar not found. Build may fail.")
+        print("Run './build_local.sh linux' to build libtorrent first.")
+    env = conf.Finish()
 
-# Phase 2: System libraries (prepared but not yet needed)
-# if is_windows:
-#     env.Append(LIBS=['ws2_32', 'wsock32', 'iphlpapi', 'crypt32'])
-# elif platform == 'linux':
-#     env.Append(LIBS=['pthread', 'ssl', 'crypto'])
-# elif platform == 'macos':
-#     env.Append(LIBS=['pthread'])
-#     env.Append(FRAMEWORKS=['CoreFoundation', 'SystemConfiguration'])
+# Phase 3: System libraries (ENABLED)
+if is_windows:
+    env.Append(LIBS=['ws2_32', 'wsock32', 'iphlpapi', 'crypt32'])
+elif platform == 'linux':
+    env.Append(LIBS=['pthread', 'ssl', 'crypto', 'dl'])
+elif platform == 'macos':
+    env.Append(LIBS=['pthread'])
+    env.Append(FRAMEWORKS=['CoreFoundation', 'SystemConfiguration'])
 
 # Debug logging for CI: print resolved names and compiler locations
 print("=== SCons debug: resolved build variables ===")
@@ -115,9 +129,9 @@ print("target:", target)
 print("arch:", arch)
 print("use_mingw:", ARGUMENTS.get('use_mingw', 'no'))
 print("expected godot_cpp_lib:", godot_cpp_lib)
-# print("expected libtorrent_lib:", libtorrent_lib)  # Commented for stub testing
 print("godot-cpp bin path:", os.path.join('godot-cpp', 'bin'))
-# print("libtorrent build path:", os.path.join('libtorrent', 'build'))  # Commented for stub testing
+print("libtorrent build path:", os.path.join('libtorrent', 'build'))
+print("libtorrent lib exists:", os.path.exists(os.path.join('libtorrent', 'build', 'libtorrent-rasterbar.a')))
 print("ENV CC:", os.environ.get('CC'))
 print("ENV CXX:", os.environ.get('CXX'))
 print("env['CC']:", env.get('CC'))
