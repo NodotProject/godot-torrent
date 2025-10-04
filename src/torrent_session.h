@@ -107,6 +107,9 @@ private:
     // Settings management
     Dictionary _current_settings;
     
+    // Torrent handle storage
+    Array _active_torrents;
+    
     // Thread safety
     mutable std::mutex _session_mutex;
     
@@ -139,6 +142,12 @@ private:
     
     // Mode detection
     void detect_build_mode();
+    
+    // Torrent management helpers
+    bool validate_save_path(const String& path);
+    void configure_add_torrent_params(void* params_ptr);
+    void add_torrent_to_storage(Ref<TorrentHandle> handle, const void* lt_handle);
+    bool remove_torrent_from_storage(Ref<TorrentHandle> handle);
 };
 
 #endif // TORRENT_SESSION_H
