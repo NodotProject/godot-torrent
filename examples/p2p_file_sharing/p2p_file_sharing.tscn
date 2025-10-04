@@ -1,0 +1,107 @@
+[gd_scene load_steps=2 format=3 uid="uid://p2p_file_sharing_001"]
+
+[ext_resource type="Script" path="res://examples/p2p_file_sharing/p2p_file_sharing.gd" id="1"]
+
+[node name="P2PFileSharing" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Title" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Godot-Torrent P2P File Sharing"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="ShareSection" type="VBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="FileLabel" type="Label" parent="VBoxContainer/ShareSection"]
+layout_mode = 2
+text = "File to Share:"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/ShareSection"]
+layout_mode = 2
+
+[node name="FilePathInput" type="LineEdit" parent="VBoxContainer/ShareSection/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "/path/to/file"
+
+[node name="BrowseButton" type="Button" parent="VBoxContainer/ShareSection/HBoxContainer"]
+layout_mode = 2
+text = "Browse"
+
+[node name="TrackerLabel" type="Label" parent="VBoxContainer/ShareSection"]
+layout_mode = 2
+text = "Tracker URL (optional):"
+
+[node name="TrackerInput" type="LineEdit" parent="VBoxContainer/ShareSection"]
+layout_mode = 2
+placeholder_text = "udp://tracker.example.com:1337/announce"
+
+[node name="ShareButton" type="Button" parent="VBoxContainer/ShareSection"]
+layout_mode = 2
+text = "Share File"
+
+[node name="HSeparator2" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="SharedListLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Shared Files:"
+
+[node name="SharedList" type="ItemList" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="HSeparator3" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="MagnetSection" type="VBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="MagnetLabel" type="Label" parent="VBoxContainer/MagnetSection"]
+layout_mode = 2
+text = "Magnet URI (share this link):"
+
+[node name="MagnetOutput" type="TextEdit" parent="VBoxContainer/MagnetSection"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 80)
+editable = false
+wrap_mode = 1
+
+[node name="CopyButton" type="Button" parent="VBoxContainer/MagnetSection"]
+layout_mode = 2
+disabled = true
+text = "Copy to Clipboard"
+
+[node name="HSeparator4" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="StatusLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Status: Ready"
+autowrap_mode = 2
+
+[node name="FileDialog" type="FileDialog" parent="."]
+title = "Select File to Share"
+size = Vector2i(600, 400)
