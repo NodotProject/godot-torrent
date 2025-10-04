@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3 uid="uid://p2p_file_sharing_001"]
+[gd_scene load_steps=2 format=3 uid="uid://d2r8y8418j4vi"]
 
-[ext_resource type="Script" path="res://examples/p2p_file_sharing/p2p_file_sharing.gd" id="1"]
+[ext_resource type="Script" uid="uid://cvyhu4ibnhf7p" path="res://examples/p2p_file_sharing/p2p_file_sharing.gd" id="1"]
 
 [node name="P2PFileSharing" type="Control"]
 layout_mode = 3
@@ -84,8 +84,8 @@ layout_mode = 2
 text = "Magnet URI (share this link):"
 
 [node name="MagnetOutput" type="TextEdit" parent="VBoxContainer/MagnetSection"]
-layout_mode = 2
 custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
 editable = false
 wrap_mode = 1
 

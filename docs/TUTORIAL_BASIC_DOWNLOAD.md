@@ -292,10 +292,21 @@ func _process(delta):
         _update_display()
 
 func _update_display():
-    var status = handle.get_status()
-    if not status:
-        return
+    # Request status updates via alerts (non-blocking)
+    manager.session.post_torrent_updates()
+    
+    # Get alerts (also non-blocking)
+    var alerts = manager.session.get_alerts()
+    
+    for alert in alerts:
+        if alert.has("torrent_status"):
+            for status_dict in alert["torrent_status"]:
+                # Check if this is our torrent
+                if status_dict.get("info_hash") == handle.get_info_hash():
+                    _update_from_status_dict(status_dict)
+                    return
 
+func _update_from_status_dict(status_dict):
     # Update name if we have metadata
     var info = handle.get_torrent_info()
     if info and info.is_valid():
@@ -304,30 +315,43 @@ func _update_display():
             name_label.text = torrent_name
 
     # Update progress
-    var progress = status.get_progress() * 100.0
+    var progress = status_dict.get("progress", 0.0) * 100.0
     progress_bar.value = progress
 
     # Update statistics
-    var download_rate = status.get_download_rate() / 1024.0  # KB/s
-    var upload_rate = status.get_upload_rate() / 1024.0      # KB/s
-    var num_peers = status.get_num_peers()
-    var state = status.get_state_string()
+    var download_rate = status_dict.get("download_rate", 0) / 1024.0  # KB/s
+    var upload_rate = status_dict.get("upload_rate", 0) / 1024.0      # KB/s
+    var num_peers = status_dict.get("num_peers", 0)
+    var state = status_dict.get("state", 0)
+    var state_str = _get_state_string(state)
 
     stats_label.text = "%.1f%% | ⬇ %.1f KB/s | ⬆ %.1f KB/s | 👥 %d | %s" % [
-        progress, download_rate, upload_rate, num_peers, state
+        progress, download_rate, upload_rate, num_peers, state_str
     ]
 
     # Update button visibility based on pause state
-    var is_paused = status.is_paused()
+    var is_paused = status_dict.get("is_paused", false)
     pause_btn.visible = not is_paused
     resume_btn.visible = is_paused
 
     # Check if download is complete
-    if status.is_finished():
+    if status_dict.get("is_finished", false):
         progress_bar.modulate = Color.GREEN
         stats_label.text = "✅ Download complete! | Seeding | ⬆ %.1f KB/s | 👥 %d" % [
             upload_rate, num_peers
         ]
+
+func _get_state_string(state: int) -> String:
+    match state:
+        0: return "Queued for checking"
+        1: return "Checking files"
+        2: return "Downloading metadata"
+        3: return "Downloading"
+        4: return "Finished"
+        5: return "Seeding"
+        6: return "Allocating"
+        7: return "Checking resume data"
+        _: return "Unknown"
 
 func _on_pause_pressed():
     if handle and handle.is_valid():

@@ -250,7 +250,7 @@ Dictionary AlertManager::_convert_alert_to_dictionary(void* alert_ptr) {
         ss << ta->handle.info_hash();
         dict["info_hash"] = String(ss.str().c_str());
         dict["tracker_url"] = String(ta->tracker_url());
-        dict["event"] = ta->event;
+        dict["event"] = static_cast<int>(ta->event);
     }
     else if (auto* ta = libtorrent::alert_cast<libtorrent::tracker_warning_alert>(alert)) {
         ss << ta->handle.info_hash();

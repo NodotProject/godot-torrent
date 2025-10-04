@@ -82,6 +82,8 @@ void TorrentSession::_bind_methods() {
     ClassDB::bind_method(D_METHOD("clear_alerts"), &TorrentSession::clear_alerts);
     ClassDB::bind_method(D_METHOD("post_torrent_updates"), &TorrentSession::post_torrent_updates);
 
+    ADD_SIGNAL(MethodInfo("metadata_received", PropertyInfo(Variant::STRING, "info_hash")));
+
     ClassDB::bind_method(D_METHOD("save_state"), &TorrentSession::save_state);
     ClassDB::bind_method(D_METHOD("load_state", "state_data"), &TorrentSession::load_state);
 
@@ -184,8 +186,7 @@ void TorrentSession::stop_session() {
                 try {
                     // Remove without announcing to trackers (avoid network delays)
                     _session->remove_torrent(handle,
-                        libtorrent::session::delete_files |
-                        libtorrent::session_handle::delete_partfile);
+                        libtorrent::session_handle::delete_partfile); // Removed libtorrent::session::delete_files
                 } catch (...) {
                     // Ignore errors removing individual torrents
                 }
@@ -827,6 +828,11 @@ Ref<TorrentHandle> TorrentSession::add_magnet_uri(String magnet_uri, String save
             return Ref<TorrentHandle>();
         }
 
+        // Add some public trackers to increase chances of finding peers
+        params.trackers.push_back("udp://tracker.opentrackr.org:1337/announce");
+        params.trackers.push_back("udp://tracker.openbittorrent.com:6969/announce");
+        params.trackers.push_back("udp://opentracker.i2p.rocks:6969/announce");
+
         params.save_path = save_path.utf8().get_data();
 
         libtorrent::torrent_handle lt_handle = _session->add_torrent(params, ec);
@@ -1001,6 +1007,7 @@ Array TorrentSession::get_alerts() {
                         status_dict["info_hash"] = String(libtorrent::aux::to_hex(status.info_hash).c_str());
                         status_dict["state"] = (int)status.state;
                         status_dict["paused"] = (bool)(status.flags & libtorrent::torrent_flags::paused);
+                        status_dict["has_metadata"] = status.has_metadata;
                         status_dict["progress"] = status.progress;
                         status_dict["download_rate"] = status.download_rate;
                         status_dict["upload_rate"] = status.upload_rate;

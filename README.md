@@ -5,7 +5,6 @@ A comprehensive BitTorrent GDExtension for Godot 4, providing full protocol func
 [![Build Status](https://github.com/NodotProject/godot-torrent/workflows/Build%20and%20Test/badge.svg)](https://github.com/NodotProject/godot-torrent/actions)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Godot](https://img.shields.io/badge/godot-4.1+-blue.svg)](https://godotengine.org/)
-[![Phase](https://img.shields.io/badge/phase-4%2F6%20In%20Progress-orange.svg)](#project-status)
 
 ## Overview
 
@@ -28,16 +27,26 @@ Godot-Torrent wraps the powerful [libtorrent](https://libtorrent.org/) library t
 var session = TorrentSession.new()
 session.start_session()
 
+# Enable DHT for magnet link support
+session.start_dht()
+
 # Add a torrent
 var handle = session.add_magnet_uri(
     "magnet:?xt=urn:btih:...",
     "/path/to/downloads"
 )
 
-# Monitor progress
-var status = handle.get_status()
-print("Progress: ", status.get_progress() * 100, "%")
-print("Download rate: ", status.get_download_rate(), " bytes/s")
+# Monitor progress (call this periodically, e.g., in a timer)
+func update_progress():
+    session.post_torrent_updates()
+    var alerts = session.get_alerts()
+    
+    for alert in alerts:
+        if alert.has("torrent_status"):
+            for status_dict in alert["torrent_status"]:
+                var progress = status_dict.get("progress", 0.0) * 100.0
+                var download_rate = status_dict.get("download_rate", 0) / 1024.0 / 1024.0
+                print("Progress: %.1f%% | Download: %.2f MB/s" % [progress, download_rate])
 ```
 
 ## Installation
@@ -74,19 +83,6 @@ Full documentation is available in the [docs](docs/) directory:
 - **[Tutorials](docs/TUTORIAL_BASIC_DOWNLOAD.md)** - Step-by-step guides
 - **[Error Handling](docs/ERROR_HANDLING.md)** - Error codes and recovery
 - **[Documentation Index](docs/index.md)** - Full documentation site
-
-## Project Status
-
-**Current Phase**: 4/6 (Information & Status) - In Progress
-
-- ✅ **Phase 1**: Foundation Architecture - COMPLETE
-- ✅ **Phase 2**: Build System & Dependencies - COMPLETE
-- ✅ **Phase 3**: Core Integration & Networking - COMPLETE
-- 🔄 **Phase 4**: Information & Status - IN PROGRESS
-- 📋 **Phase 5**: Advanced Features - PLANNED
-- 🔄 **Phase 6**: Polish & Production - IN PROGRESS
-
-See [Project Status](#-project-status) section for detailed progress.
 
 ## Core Classes
 

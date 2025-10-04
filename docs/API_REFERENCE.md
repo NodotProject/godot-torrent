@@ -58,8 +58,18 @@ func _ready():
 
 func _process(_delta):
     if handle != null and handle.is_valid():
-        var status = handle.get_status()
-        print("Progress: %.2f%%" % (status.get_progress() * 100))
+        # Request status updates via alerts (non-blocking)
+        session.post_torrent_updates()
+        
+        # Get alerts (also non-blocking)
+        var alerts = session.get_alerts()
+        
+        for alert in alerts:
+            if alert.has("torrent_status"):
+                for status_dict in alert["torrent_status"]:
+                    if status_dict.get("info_hash") == handle.get_info_hash():
+                        var progress = status_dict.get("progress", 0.0) * 100.0
+                        print("Progress: %.2f%%" % progress)
 
 func _exit_tree():
     if session != null:

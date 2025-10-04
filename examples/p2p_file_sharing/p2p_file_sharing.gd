@@ -8,8 +8,8 @@ var shared_files: Dictionary = {}  # torrent_name -> handle
 
 @onready var file_selector: FileDialog = $FileDialog
 @onready var share_button: Button = $VBoxContainer/ShareSection/ShareButton
-@onready var file_path_input: LineEdit = $VBoxContainer/ShareSection/FilePathInput
-@onready var browse_button: Button = $VBoxContainer/ShareSection/BrowseButton
+@onready var file_path_input: LineEdit = $VBoxContainer/ShareSection/HBoxContainer/FilePathInput
+@onready var browse_button: Button = $VBoxContainer/ShareSection/HBoxContainer/BrowseButton
 @onready var tracker_input: LineEdit = $VBoxContainer/ShareSection/TrackerInput
 @onready var shared_list: ItemList = $VBoxContainer/SharedList
 @onready var magnet_output: TextEdit = $VBoxContainer/MagnetSection/MagnetOutput
@@ -26,7 +26,7 @@ func _ready():
 		"enable_dht": true,
 		"enable_lsd": true,  # Local Service Discovery
 	}
-	session.apply_settings(settings)
+	session.start_session_with_settings(settings)
 
 	# Connect signals
 	share_button.pressed.connect(_on_share_button_pressed)

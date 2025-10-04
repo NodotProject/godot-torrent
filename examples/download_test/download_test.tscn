@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://cx8f5y3dpj2wl"]
 
-[ext_resource type="Script" uid="uid://dqp32pacj1u80" path="res://demo/download_test.gd" id="1_w2g5h"]
+[ext_resource type="Script" uid="uid://dqp32pacj1u80" path="res://examples/download_test/download_test.gd" id="1_w2g5h"]
 
 [node name="DownloadTest" type="Control"]
 layout_mode = 3

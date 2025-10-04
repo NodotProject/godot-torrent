@@ -16,6 +16,9 @@ func _ready():
 	# Initialize session
 	session = TorrentSession.new()
 	session.start_session()
+	
+	# Enable DHT for magnet link support
+	session.start_dht()
 
 	# Set default download path
 	download_path_input.text = OS.get_user_data_dir() + "/downloads"
@@ -67,62 +70,86 @@ func _on_add_button_pressed():
 		status_label.text = "Error: Failed to add torrent"
 
 func _update_torrents():
-	for info_hash in active_torrents.keys():
-		var torrent_data = active_torrents[info_hash]
-		var handle = torrent_data["handle"]
-		var list_idx = torrent_data["list_item"]
-
-		if not handle.is_valid():
-			continue
-
-		var status = handle.get_status()
-		if not status:
-			continue
-
-		var progress = status.get_progress() * 100.0
-		var download_rate = status.get_download_rate() / 1024.0 / 1024.0  # MB/s
-		var upload_rate = status.get_upload_rate() / 1024.0 / 1024.0  # MB/s
-		var num_peers = status.get_num_peers()
-		var state = status.get_state_string()
-
-		# Get torrent name
-		var info = handle.get_torrent_info()
-		var name = info.get_name() if info and info.is_valid() else "Unknown"
-
-		# Update list item
-		var text = "%s [%.1f%%] - D: %.2f MB/s U: %.2f MB/s - %d peers - %s" % [
-			name, progress, download_rate, upload_rate, num_peers, state
-		]
-		torrent_list.set_item_text(list_idx, text)
-
-		# Update status label if this is a selected torrent
-		if torrent_list.is_selected(list_idx):
-			_update_status_for_handle(handle)
+	# Request status updates via alerts (non-blocking)
+	session.post_torrent_updates()
+	
+	# Get alerts (also non-blocking)
+	var alerts = session.get_alerts()
+	
+	for alert in alerts:
+		# Check if this alert contains torrent status
+		if alert.has("torrent_status"):
+			var statuses = alert["torrent_status"]
+			for status_dict in statuses:
+				var info_hash = status_dict.get("info_hash", "")
+				
+				# Skip if this torrent is not in our list
+				if not active_torrents.has(info_hash):
+					continue
+				
+				var torrent_data = active_torrents[info_hash]
+				var handle = torrent_data["handle"]
+				var list_idx = torrent_data["list_item"]
+				
+				if not handle.is_valid():
+					continue
+				
+				# Get status info from alert
+				var progress = status_dict.get("progress", 0.0) * 100.0
+				var download_rate = status_dict.get("download_rate", 0) / 1024.0 / 1024.0  # MB/s
+				var upload_rate = status_dict.get("upload_rate", 0) / 1024.0 / 1024.0  # MB/s
+				var num_peers = status_dict.get("num_peers", 0)
+				var state = status_dict.get("state", 0)
+				var state_str = _get_state_string(state)
+				
+				# Get torrent name
+				var info = handle.get_torrent_info()
+				var name = info.get_name() if info and info.is_valid() else "Unknown"
+				
+				# Update list item
+				var text = "%s [%.1f%%] - D: %.2f MB/s U: %.2f MB/s - %d peers - %s" % [
+					name, progress, download_rate, upload_rate, num_peers, state_str
+				]
+				torrent_list.set_item_text(list_idx, text)
+				
+				# Update status label if this is a selected torrent
+				if torrent_list.is_selected(list_idx):
+					_update_status_for_handle_with_dict(handle, status_dict)
 
 func _on_torrent_selected(index: int):
 	# Find the handle for this list item
 	for info_hash in active_torrents.keys():
 		var torrent_data = active_torrents[info_hash]
 		if torrent_data["list_item"] == index:
-			_update_status_for_handle(torrent_data["handle"])
+			# Trigger an immediate update for this torrent
+			session.post_torrent_updates()
 			break
 
-func _update_status_for_handle(handle):
-	var status = handle.get_status()
-	if not status:
-		return
+func _get_state_string(state: int) -> String:
+	match state:
+		0: return "Queued for checking"
+		1: return "Checking files"
+		2: return "Downloading metadata"
+		3: return "Downloading"
+		4: return "Finished"
+		5: return "Seeding"
+		6: return "Allocating"
+		7: return "Checking resume data"
+		_: return "Unknown"
 
+func _update_status_for_handle_with_dict(handle, status_dict):
 	var info = handle.get_torrent_info()
 	var name = info.get_name() if info and info.is_valid() else "Unknown"
 	var total_size = info.get_total_size() if info and info.is_valid() else 0
 
-	var progress = status.get_progress() * 100.0
-	var downloaded = status.get_total_download()
-	var uploaded = status.get_total_upload()
-	var download_rate = status.get_download_rate() / 1024.0 / 1024.0
-	var upload_rate = status.get_upload_rate() / 1024.0 / 1024.0
-	var num_peers = status.get_num_peers()
-	var num_seeds = status.get_num_seeds()
+	var progress = status_dict.get("progress", 0.0) * 100.0
+	var downloaded = status_dict.get("total_download", 0)
+	var uploaded = status_dict.get("total_upload", 0)
+	var download_rate = status_dict.get("download_rate", 0) / 1024.0 / 1024.0
+	var upload_rate = status_dict.get("upload_rate", 0) / 1024.0 / 1024.0
+	var num_peers = status_dict.get("num_peers", 0)
+	var num_seeds = status_dict.get("num_seeds", 0)
+	var state = status_dict.get("state", 0)
 
 	status_label.text = """Name: %s
 Progress: %.1f%% (%.2f / %.2f MB)
@@ -140,7 +167,7 @@ State: %s""" % [
 		upload_rate,
 		num_peers,
 		num_seeds,
-		status.get_state_string()
+		_get_state_string(state)
 	]
 
 func _notification(what):

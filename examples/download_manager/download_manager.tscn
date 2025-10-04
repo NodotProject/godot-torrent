@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3 uid="uid://download_manager_001"]
+[gd_scene load_steps=2 format=3 uid="uid://c81y65jv0rmxo"]
 
-[ext_resource type="Script" path="res://examples/download_manager/download_manager.gd" id="1"]
+[ext_resource type="Script" uid="uid://gq1dcnf46vdr" path="res://examples/download_manager/download_manager.gd" id="1"]
 
 [node name="DownloadManager" type="Control"]
 layout_mode = 3
@@ -42,6 +42,7 @@ text = "Magnet URI:"
 
 [node name="MagnetInput" type="LineEdit" parent="VBoxContainer/InputSection"]
 layout_mode = 2
+text = "magnet:?xt=urn:btih:a88fda5954e89178c372716a6a78b8180ed4dad3&dn=The+WIRED+CD+-+Rip.+Sample.+Mash.+Share&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fwired-cd.torrent"
 placeholder_text = "magnet:?xt=urn:btih:..."
 
 [node name="DownloadPathLabel" type="Label" parent="VBoxContainer/InputSection"]

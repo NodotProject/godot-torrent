@@ -112,6 +112,30 @@ for i in range(info.get_file_count()):
 
 ## UI Performance
 
+### Use Alert-Based Status Updates
+
+**Always use the alert system instead of blocking calls:**
+
+```gdscript
+# ❌ BAD: Blocking, expensive
+var status = handle.get_status()
+var progress = status.get_progress()
+
+# ✅ GOOD: Non-blocking, efficient
+session.post_torrent_updates()
+var alerts = session.get_alerts()
+
+for alert in alerts:
+    if alert.has("torrent_status"):
+        for status_dict in alert["torrent_status"]:
+            var progress = status_dict.get("progress", 0.0)
+```
+
+The alert system is:
+- **Non-blocking**: Doesn't wait for libtorrent
+- **Batched**: Gets status for all torrents at once
+- **Efficient**: Optimized for frequent polling
+
 ### Update Less Frequently
 
 ```gdscript
@@ -130,16 +154,26 @@ func _process(delta):
 ### Batch Status Queries
 
 ```gdscript
-# Bad: Query each torrent individually
+# Bad: Query each torrent individually (blocking)
 for handle in handles:
-    var status = handle.get_status()  # Expensive!
+    var status = handle.get_status()  # Expensive and blocking!
     update_item(handle, status)
 
-# Good: Query once per frame
+# Good: Use alerts to get all status updates at once (non-blocking)
 func _process(_delta):
-    for handle in handles:
-        handle.update_status()  # Cache status
-    _update_all_ui()
+    # Request status updates for all torrents
+    session.post_torrent_updates()
+    
+    # Get all alerts at once
+    var alerts = session.get_alerts()
+    
+    for alert in alerts:
+        if alert.has("torrent_status"):
+            var statuses = alert["torrent_status"]
+            for status_dict in statuses:
+                var info_hash = status_dict.get("info_hash")
+                if info_hash in torrent_map:
+                    update_item(torrent_map[info_hash], status_dict)
 ```
 
 ### Use Object Pooling for UI
@@ -178,15 +212,24 @@ func add_torrent(magnet):
 
 ```gdscript
 func cleanup_completed():
-    for handle in active_torrents.duplicate():
-        var status = handle.get_status()
-        if status and status.is_finished():
-            # Save resume data
-            handle.save_resume_data()
-
-            # Remove from session
-            session.remove_torrent(handle, false)
-            active_torrents.erase(handle)
+    # Request status updates
+    session.post_torrent_updates()
+    var alerts = session.get_alerts()
+    
+    for alert in alerts:
+        if alert.has("torrent_status"):
+            for status_dict in alert["torrent_status"]:
+                if status_dict.get("is_finished", false):
+                    var info_hash = status_dict.get("info_hash")
+                    var handle = find_handle_by_info_hash(info_hash)
+                    
+                    if handle:
+                        # Save resume data
+                        handle.save_resume_data()
+                        
+                        # Remove from session
+                        session.remove_torrent(handle, false)
+                        active_torrents.erase(handle)
 ```
 
 ## Bandwidth Management
@@ -249,15 +292,23 @@ class_name PerformanceBenchmark
 var start_time: int
 var bytes_downloaded: int = 0
 var bytes_uploaded: int = 0
+var info_hash: String = ""
 
-func start():
+func start(handle: TorrentHandle):
     start_time = Time.get_ticks_msec()
+    info_hash = handle.get_info_hash()
 
-func update(handle: TorrentHandle):
-    var status = handle.get_status()
-    if status:
-        bytes_downloaded = status.get_total_download()
-        bytes_uploaded = status.get_total_upload()
+func update(session: TorrentSession):
+    session.post_torrent_updates()
+    var alerts = session.get_alerts()
+    
+    for alert in alerts:
+        if alert.has("torrent_status"):
+            for status_dict in alert["torrent_status"]:
+                if status_dict.get("info_hash") == info_hash:
+                    bytes_downloaded = status_dict.get("total_download", 0)
+                    bytes_uploaded = status_dict.get("total_upload", 0)
+                    return
 
 func get_results() -> Dictionary:
     var elapsed = (Time.get_ticks_msec() - start_time) / 1000.0  # Seconds

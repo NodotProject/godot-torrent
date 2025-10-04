@@ -87,13 +87,6 @@ func check_ratio():
             print("📊 Current ratio: %.2f / %.2f" % [current_ratio, target_ratio])
 ```
 
-## Creating Torrents to Seed
-
-```gdscript
-# TODO: TorrentCreator implementation in Phase 5
-# For now, create .torrent files externally and add them
-```
-
 ## Monitoring Seeding Activity
 
 ```gdscript

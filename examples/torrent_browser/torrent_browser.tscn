@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3 uid="uid://torrent_browser_001"]
+[gd_scene load_steps=2 format=3 uid="uid://cmo1wskt3amu1"]
 
-[ext_resource type="Script" path="res://examples/torrent_browser/torrent_browser.gd" id="1"]
+[ext_resource type="Script" uid="uid://c60kueuui8fj3" path="res://examples/torrent_browser/torrent_browser.gd" id="1"]
 
 [node name="TorrentBrowser" type="Control"]
 layout_mode = 3
@@ -40,6 +40,7 @@ text = "Magnet URI:"
 
 [node name="MagnetInput" type="LineEdit" parent="VBoxContainer/InputSection"]
 layout_mode = 2
+text = "magnet:?xt=urn:btih:a88fda5954e89178c372716a6a78b8180ed4dad3&dn=The+WIRED+CD+-+Rip.+Sample.+Mash.+Share&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fwired-cd.torrent"
 placeholder_text = "magnet:?xt=urn:btih:..."
 
 [node name="LoadButton" type="Button" parent="VBoxContainer/InputSection"]
@@ -66,6 +67,17 @@ layout_mode = 2
 [node name="FileTreeLabel" type="Label" parent="VBoxContainer"]
 layout_mode = 2
 text = "Files (check to download):"
+
+[node name="FileSelectionButtons" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="SelectAllButton" type="Button" parent="VBoxContainer/FileSelectionButtons"]
+layout_mode = 2
+text = "Select All"
+
+[node name="SelectNoneButton" type="Button" parent="VBoxContainer/FileSelectionButtons"]
+layout_mode = 2
+text = "Select None"
 
 [node name="FileTree" type="Tree" parent="VBoxContainer"]
 layout_mode = 2

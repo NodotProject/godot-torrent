@@ -100,20 +100,30 @@ func _ready():
 func _process(_delta):
     # Update download progress every frame
     if handle and handle.is_valid():
-        var status = handle.get_status()
-        if status:
-            var progress = status.get_progress() * 100.0
-            var download_rate = status.get_download_rate() / 1024.0  # KB/s
-            var num_peers = status.get_num_peers()
-
-            # Print progress (every 60 frames = ~once per second)
-            if Engine.get_process_frames() % 60 == 0:
-                print("📥 Progress: %.1f%% | ⬇ %.1f KB/s | 👥 %d peers" % [progress, download_rate, num_peers])
-
-            # Check if download is complete
-            if status.is_finished():
-                print("✨ Download complete!")
-                set_process(false)  # Stop updating
+        # Request status updates via alerts (non-blocking)
+        session.post_torrent_updates()
+        
+        # Get alerts (also non-blocking)
+        var alerts = session.get_alerts()
+        
+        for alert in alerts:
+            if alert.has("torrent_status"):
+                for status_dict in alert["torrent_status"]:
+                    # Check if this is our torrent
+                    if status_dict.get("info_hash") == handle.get_info_hash():
+                        var progress = status_dict.get("progress", 0.0) * 100.0
+                        var download_rate = status_dict.get("download_rate", 0) / 1024.0  # KB/s
+                        var num_peers = status_dict.get("num_peers", 0)
+                        var is_finished = status_dict.get("is_finished", false)
+                        
+                        # Print progress (every 60 frames = ~once per second)
+                        if Engine.get_process_frames() % 60 == 0:
+                            print("📥 Progress: %.1f%% | ⬇ %.1f KB/s | 👥 %d peers" % [progress, download_rate, num_peers])
+                        
+                        # Check if download is complete
+                        if is_finished:
+                            print("✨ Download complete!")
+                            set_process(false)  # Stop updating
 
 func _exit_tree():
     # Clean up when the node is removed
@@ -178,24 +188,33 @@ handle.resume()  # Resume download
 
 ### TorrentStatus
 
-**TorrentStatus** provides real-time information about a torrent's state.
+**TorrentStatus** provides real-time information about a torrent's state. The recommended way to get status updates is via the alert system:
 
 ```gdscript
-var status = handle.get_status()
+# Request status updates
+session.post_torrent_updates()
 
-print("Progress: ", status.get_progress())       # 0.0 to 1.0
-print("Download rate: ", status.get_download_rate())  # bytes/sec
-print("Upload rate: ", status.get_upload_rate())      # bytes/sec
-print("Peers: ", status.get_num_peers())              # peer count
-print("State: ", status.get_state_string())           # "downloading", "seeding", etc.
+# Get alerts containing status information
+var alerts = session.get_alerts()
+
+for alert in alerts:
+    if alert.has("torrent_status"):
+        for status_dict in alert["torrent_status"]:
+            var progress = status_dict.get("progress", 0.0)      # 0.0 to 1.0
+            var download_rate = status_dict.get("download_rate", 0)  # bytes/sec
+            var upload_rate = status_dict.get("upload_rate", 0)      # bytes/sec
+            var num_peers = status_dict.get("num_peers", 0)          # peer count
+            var state = status_dict.get("state", 0)                  # state enum
+            var is_finished = status_dict.get("is_finished", false)
 ```
 
-**Key properties:**
-- `get_progress()` - Download progress (0.0 - 1.0)
-- `get_download_rate()` - Current download speed (bytes/sec)
-- `get_upload_rate()` - Current upload speed (bytes/sec)
-- `get_num_peers()` - Number of connected peers
-- `is_finished()` - Check if download is complete
+**Key properties in status dictionary:**
+- `progress` - Download progress (0.0 - 1.0)
+- `download_rate` - Current download speed (bytes/sec)
+- `upload_rate` - Current upload speed (bytes/sec)
+- `num_peers` - Number of connected peers
+- `is_finished` - Check if download is complete
+- `state` - Torrent state (0=queued, 1=checking, 2=downloading metadata, 3=downloading, 4=finished, 5=seeding)
 
 ### TorrentInfo
 
@@ -248,12 +267,17 @@ handle = session.add_magnet_uri(magnet, "/home/user/downloads")
 
 ### Q: How do I know when a download is complete?
 
-Check the status:
+Check the status via alerts:
 
 ```gdscript
-var status = handle.get_status()
-if status and status.is_finished():
-    print("Download complete!")
+session.post_torrent_updates()
+var alerts = session.get_alerts()
+
+for alert in alerts:
+    if alert.has("torrent_status"):
+        for status_dict in alert["torrent_status"]:
+            if status_dict.get("is_finished", false):
+                print("Download complete!")
 ```
 
 ### Q: Can I download multiple torrents at once?

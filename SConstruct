@@ -14,7 +14,7 @@ if not platform:
         platform = 'linux'
 
 target = ARGUMENTS.get('target', 'template_release')
-arch = ARGUMENTS.get('arch', 'x86_64')
+arch = ARGUMENTS.get('arch', 'universal' if platform == 'macos' else 'x86_64')
 if arch not in ['x86_64', 'x86_32', 'arm64', 'universal']:
     print(f"ERROR: Invalid architecture '{arch}'. Supported architectures are: x86_64, x86_32, arm64, universal.")
     Exit(1)
@@ -56,8 +56,14 @@ env.Append(CPPPATH=[
     'godot-cpp/gdextension',
     'libtorrent/include',
     '/usr/include',  # For system libtorrent headers
-    '/usr/include/libtorrent'  # Specific path for libtorrent headers
+    '/usr/include/libtorrent',  # Specific path for libtorrent headers
+    '/usr/local/include', # For Boost headers
+    '/usr/local/include/boost' # Specific path for Boost headers
 ])
+
+if platform == 'macos':
+    # Add Homebrew OpenSSL lib path for macOS
+    env.Append(LIBPATH=['/usr/local/opt/openssl@3/lib']) # Assuming openssl@3 is installed via Homebrew
 
 env.Append(LIBPATH=['godot-cpp/bin', 'libtorrent/build'])
 
@@ -114,13 +120,12 @@ else:
         Exit(1)
     env = conf.Finish()
 
-# Phase 3: System libraries (ENABLED)
 if is_windows:
     env.Append(LIBS=['ws2_32', 'wsock32', 'iphlpapi', 'crypt32'])
 elif platform == 'linux':
     env.Append(LIBS=['pthread', 'ssl', 'crypto', 'dl'])
 elif platform == 'macos':
-    env.Append(LIBS=['pthread'])
+    env.Append(LIBS=['pthread', 'ssl', 'crypto']) # Added ssl and crypto for OpenSSL linking
     env.Append(FRAMEWORKS=['CoreFoundation', 'SystemConfiguration'])
 
 # Debug logging for CI: print resolved names and compiler locations
@@ -141,10 +146,10 @@ print("============================================")
 
 src_files = [
     'src/register_types.cpp',
-    'src/torrent_error.cpp',       # Issue #35: Standardized error handling
-    'src/torrent_result.cpp',      # Issue #35: Result wrapper for error handling
-    'src/torrent_logger.cpp',      # Issue #36: Logging integration
-    'src/torrent_session.cpp',     # Issue #2: Real session implementation (replaces phase2 stub)
+    'src/torrent_error.cpp',
+    'src/torrent_result.cpp',
+    'src/torrent_logger.cpp',
+    'src/torrent_session.cpp',
     'src/torrent_handle.cpp',
     'src/torrent_info.cpp',
     'src/torrent_status.cpp',
