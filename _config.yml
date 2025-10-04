@@ -44,3 +44,14 @@ footer-msg-link: https://github.com/harrywang/tailpages
 # jekyll plugins - no need to change
 plugins:
     - jekyll-seo-tag
+    - jekyll-optional-front-matter
+    - jekyll-relative-links
+
+# Configure optional front matter to work like GitHub Pages
+optional_front_matter:
+  enabled: true
+
+# Configure relative links to convert .md to .html
+relative_links:
+  enabled: true
+  collections: false

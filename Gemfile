@@ -16,6 +16,8 @@ gem "minima", "~> 2.5"
 # If you have any plugins, put them here!
 group :jekyll_plugins do
   gem 'jekyll-postcss-v2'
+  gem 'jekyll-optional-front-matter'
+  gem 'jekyll-relative-links'
 end
 
 # Windows and JRuby does not include zoneinfo files, so bundle the tzinfo-data gem

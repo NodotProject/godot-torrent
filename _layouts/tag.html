@@ -5,7 +5,7 @@ layout: default
   {% include nav.html%}
 {% endif %}
 
-<div class="px-4 pt-4 prose prose-{{site.theme-color}}">
+<div class="px-4 pt-4 prose dark:prose-invert prose-{{site.theme-color}}">
     <h1 class="text-center mt-6 mb-6">{{ page.title }}</h1>
     {% for tag in site.tags %}
       <div class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">

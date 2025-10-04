@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ site.lang | default: " en-US" }}" class="dark">
+<html lang="{{ site.lang | default: " en-US" }}">
 
 <head>
 
@@ -30,7 +30,8 @@
     integrity="sha384-DyZ88mC6Up2uqS4h/KRgHuoeGwBcD4Ng9SiP4dIRy0EXTlnuz47vAwmeGwVChigm" crossorigin="anonymous">
 
   <!-- highlight.js -->
-  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.4.0/styles/github-dark-dimmed.min.css">
+  <link rel="stylesheet" id="highlight-theme-light" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.4.0/styles/github.min.css" media="(prefers-color-scheme: light)">
+  <link rel="stylesheet" id="highlight-theme-dark" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.4.0/styles/github-dark-dimmed.min.css" media="(prefers-color-scheme: dark)">
   <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.4.0/highlight.min.js"></script>
   <script>hljs.highlightAll();</script>
 
