@@ -198,20 +198,22 @@ bool TorrentHandle::is_valid() const {
 
 Ref<TorrentInfo> TorrentHandle::get_torrent_info() {
     std::lock_guard<std::mutex> lock(_handle_mutex);
-    
+
     Ref<TorrentInfo> info;
     info.instantiate();
-    
+
     if (!validate_handle()) {
         return info;
     }
-    
+
     try {
         if (!_is_stub_mode) {
 #ifndef TORRENT_STUB_MODE
             libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
-            if (handle->torrent_file()) {
-                // TODO: Populate TorrentInfo with real data from handle->torrent_file()
+            std::shared_ptr<const libtorrent::torrent_info> ti = handle->torrent_file();
+            if (ti) {
+                // Create a non-const shared_ptr copy for TorrentInfo
+                info->_set_internal_info(std::const_pointer_cast<libtorrent::torrent_info>(ti));
                 log_handle_operation("Retrieved real torrent info");
             }
 #endif
@@ -221,7 +223,7 @@ Ref<TorrentInfo> TorrentHandle::get_torrent_info() {
     } catch (const std::exception& e) {
         handle_operation_error("get_torrent_info", e);
     }
-    
+
     return info;
 }
 
@@ -543,14 +545,18 @@ Array TorrentHandle::get_peer_info() {
             libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
             std::vector<libtorrent::peer_info> peer_list;
             handle->get_peer_info(peer_list);
-            
+
             for (const auto& peer : peer_list) {
                 Ref<PeerInfo> peer_info;
                 peer_info.instantiate();
-                // TODO: Populate PeerInfo with real data from peer
+
+                // Create a shared_ptr copy of peer data
+                auto peer_copy = std::make_shared<libtorrent::peer_info>(peer);
+                peer_info->_set_internal_info(peer_copy);
+
                 peers.append(peer_info);
             }
-            
+
             log_handle_operation("Retrieved " + String::num(peers.size()) + " peer info entries");
 #endif
         } else {
