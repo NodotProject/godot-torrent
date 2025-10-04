@@ -91,10 +91,14 @@ TorrentSession::TorrentSession() {
 }
 
 TorrentSession::~TorrentSession() {
-    if (_session_running) {
-        stop_session();
+    try {
+        if (_session_running) {
+            stop_session();
+        }
+        cleanup_session();
+    } catch (...) {
+        // Ignore exceptions in destructor to prevent crashes
     }
-    cleanup_session();
 }
 
 void TorrentSession::detect_build_mode() {
@@ -196,12 +200,13 @@ void TorrentSession::stop_session() {
     }
     
     try {
+        _session_running = false; // Set this first to prevent recursive calls
         cleanup_session();
-        _session_running = false;
         log_session_operation("Session stopped cleanly");
     } catch (const std::exception& e) {
         handle_session_error(std::string("stop_session"), e);
-        _session_running = false; // Force stop even on error
+    } catch (...) {
+        UtilityFunctions::print_rich("[color=red]Unknown error stopping session[/color]");
     }
 }
 
@@ -1124,12 +1129,16 @@ void TorrentSession::clear_alerts() {
 
 // Resource management methods
 void TorrentSession::cleanup_session() {
-    if (_session_ptr && !_is_stub_mode) {
+    try {
+        if (_session_ptr && !_is_stub_mode) {
 #ifndef TORRENT_STUB_MODE
-        delete static_cast<libtorrent::session*>(_session_ptr);
+            delete static_cast<libtorrent::session*>(_session_ptr);
 #endif
-        _session_ptr = nullptr;
+        }
+    } catch (...) {
+        // Ignore cleanup exceptions to prevent crashes
     }
+    _session_ptr = nullptr;
 }
 
 void TorrentSession::initialize_session_resources() {
