@@ -230,6 +230,7 @@ Ref<TorrentStatus> TorrentHandle::get_status() {
     status.instantiate();
     
     if (!validate_handle()) {
+        log_handle_operation("Cannot get status: Invalid handle", false);
         return status;
     }
     
@@ -237,11 +238,26 @@ Ref<TorrentStatus> TorrentHandle::get_status() {
         if (!_is_stub_mode) {
 #ifndef TORRENT_STUB_MODE
             libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
+            
+            // Get real-time status from libtorrent
             libtorrent::torrent_status lt_status = handle->status();
-            // TODO: Populate TorrentStatus with real data from lt_status
-            log_handle_operation("Retrieved real torrent status");
+            
+            // Create a copy of the status to pass to TorrentStatus
+            libtorrent::torrent_status* status_copy = new libtorrent::torrent_status(lt_status);
+            
+            // Set the real status in TorrentStatus object
+            Dictionary status_dict;
+            status_dict["real_status"] = true;
+            status_dict["libtorrent_ptr"] = (uint64_t)status_copy; // Store pointer for real mode
+            status->_set_internal_status(status_dict);
+            
+            log_handle_operation("Real torrent status retrieved");
 #endif
         } else {
+            // Stub mode - set a dummy status
+            Dictionary stub_status;
+            stub_status["stub"] = true;
+            status->_set_internal_status(stub_status);
             simulate_handle_operation("get_status");
         }
     } catch (const std::exception& e) {
