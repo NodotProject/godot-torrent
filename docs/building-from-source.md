@@ -498,9 +498,9 @@ otool -L addons/godot-torrent/bin/libgodot-torrent.dylib  # macOS
 ## Next Steps
 
 After building:
-1. [Getting Started Guide](GETTING_STARTED.md) - Learn to use the library
+1. [Getting Started Guide](getting-started.md) - Learn to use the library
 2. [Run Tests](run_tests.sh) - Verify your build
-3. [API Reference](API_REFERENCE.md) - Explore the API
+3. [API Reference](api-reference.md) - Explore the API
 
 ---
 

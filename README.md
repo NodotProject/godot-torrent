@@ -72,7 +72,7 @@ func update_progress():
 ## Installation
 
 ### Prerequisites
-- Godot 4.1+
+- Godot 4.5+
 - Git (for submodules)
 - Build tools: GCC/Clang, SCons, CMake
 
@@ -92,18 +92,6 @@ cd godot-torrent
 ./run_tests.sh
 ```
 
-For detailed build instructions, see [Building from Source](docs/BUILDING_FROM_SOURCE.md).
-
-## Documentation
-
-Full documentation is available in the [docs](docs/) directory:
-
-- **[Getting Started](docs/GETTING_STARTED.md)** - Quick setup guide
-- **[API Reference](docs/API_REFERENCE.md)** - Complete API documentation
-- **[Tutorials](docs/TUTORIAL_BASIC_DOWNLOAD.md)** - Step-by-step guides
-- **[Error Handling](docs/ERROR_HANDLING.md)** - Error codes and recovery
-- **[Documentation Index](docs/index.md)** - Full documentation site
-
 ## Core Classes
 
 - **TorrentSession** - Session management and configuration (30+ methods)
@@ -121,16 +109,6 @@ Full documentation is available in the [docs](docs/) directory:
 - **Application Development** - File sharing, content delivery, backups
 - **Media Applications** - Large file transfers, streaming content
 
-See [Use Cases](docs/USE_CASES.md) for detailed examples.
-
-## Performance
-
-- **Build Time**: < 2 minutes with caching
-- **Library Size**: 1.4MB optimized
-- **Startup Time**: < 100ms session initialization
-- **Memory Usage**: < 5MB base overhead
-- **Network**: Full libtorrent throughput with DHT, UPnP, IPv6
-
 ## Testing
 
 The project includes comprehensive testing using [GUT](https://github.com/bitwes/Gut):
@@ -145,8 +123,6 @@ godot --headless -s addons/gut/gut_cmdln.gd -gdir=test/integration -gexit
 ```
 
 ## Contributing
-
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 1. Fork the repository
 2. Create a feature branch

@@ -468,7 +468,7 @@ func _exit_tree():
 
 ## Additional Resources
 
-- **Error Handling Guide**: See `ERROR_HANDLING.md` for error codes and recovery
+- **Error Handling Guide**: See `error-handling.md` for error codes and recovery
 - **Godot Console**: Press F3 in editor to view console output
 - **Log Files**: Check `user://` directory for log files
 

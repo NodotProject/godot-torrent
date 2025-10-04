@@ -265,4 +265,4 @@ func _check_seeding_goals():
 
 ---
 
-**Next**: [Advanced Configuration Guide →](GUIDE_ADVANCED_CONFIG.md)
+**Next**: [Advanced Configuration Guide →](guide-advanced-config.md)

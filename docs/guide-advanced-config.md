@@ -270,5 +270,5 @@ session.set_logger(logger)
 ---
 
 **See also:**
-- [Performance Tuning Guide](GUIDE_PERFORMANCE_TUNING.md)
-- [API Reference](API_REFERENCE.md)
+- [Performance Tuning Guide](guide-performance-tuning.md)
+- [API Reference](api-reference.md)

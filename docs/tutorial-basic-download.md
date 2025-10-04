@@ -14,7 +14,7 @@ A download manager with:
 
 ## Prerequisites
 
-- Completed the [Getting Started Guide](GETTING_STARTED.md)
+- Completed the [Getting Started Guide](getting-started.md)
 - Basic knowledge of Godot UI nodes
 - Understanding of signals in Godot
 
@@ -557,9 +557,9 @@ session.start_dht()
 
 ## Next Steps
 
-- **[Seeding Tutorial](TUTORIAL_SEEDING.md)** - Learn how to share files
-- **[Advanced Configuration](GUIDE_ADVANCED_CONFIG.md)** - Fine-tune your setup
-- **[Performance Tuning](GUIDE_PERFORMANCE_TUNING.md)** - Optimize for speed
+- **[Seeding Tutorial](tutorial-seeding.md)** - Learn how to share files
+- **[Advanced Configuration](guide-advanced-config.md)** - Fine-tune your setup
+- **[Performance Tuning](guide-performance-tuning.md)** - Optimize for speed
 
 ---
 

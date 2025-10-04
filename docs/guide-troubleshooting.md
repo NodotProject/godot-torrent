@@ -43,7 +43,7 @@ rm -rf godot-cpp/bin libtorrent/build
 ./build_local.sh linux
 ```
 
-See [BUILDING_FROM_SOURCE.md](BUILDING_FROM_SOURCE.md) for details.
+See [building-from-source.md](building-from-source.md) for details.
 
 ---
 
@@ -417,9 +417,9 @@ var handle = session.add_magnet_uri(test_magnet, "user://test")
 If you're still stuck:
 
 1. **Check documentation**:
-   - [API Reference](API_REFERENCE.md)
-   - [Error Handling Guide](ERROR_HANDLING.md)
-   - [Debugging Guide](DEBUGGING_GUIDE.md)
+   - [API Reference](api-reference.md)
+   - [Error Handling Guide](error-handling.md)
+   - [Debugging Guide](debugging-guide.md)
 
 2. **Search existing issues**:
    - [GitHub Issues](https://github.com/NodotProject/godot-torrent/issues)
@@ -462,4 +462,4 @@ func _exit_tree():
 
 ---
 
-**Still need help?** See [Getting Started](GETTING_STARTED.md) for basics or open an [issue](https://github.com/NodotProject/godot-torrent/issues).
+**Still need help?** See [Getting Started](getting-started.md) for basics or open an [issue](https://github.com/NodotProject/godot-torrent/issues).

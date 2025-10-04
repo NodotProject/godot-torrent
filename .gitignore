@@ -26,3 +26,8 @@ Thumbs.db
 /*.json
 .ai/
 .sconf_temp
+.bundle
+.jekyll-cache
+_site
+node_modules
+vendor

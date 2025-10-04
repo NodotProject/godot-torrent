@@ -22,7 +22,7 @@ Before you begin, make sure you have:
 
 ### Optional (for building from source):
 - Git (for cloning the repository)
-- Build tools (see [BUILDING_FROM_SOURCE.md](BUILDING_FROM_SOURCE.md))
+- Build tools (see [building-from-source.md](building-from-source.md))
 
 ---
 
@@ -36,7 +36,7 @@ Before you begin, make sure you have:
 
 ### Option 2: Building from Source
 
-See [BUILDING_FROM_SOURCE.md](BUILDING_FROM_SOURCE.md) for detailed instructions.
+See [building-from-source.md](building-from-source.md) for detailed instructions.
 
 ### Verifying Installation
 
@@ -236,18 +236,18 @@ if info and info.is_valid():
 Now that you have the basics down, explore more advanced features:
 
 ### Tutorials
-- **[Basic Download Tutorial](TUTORIAL_BASIC_DOWNLOAD.md)** - Complete download manager
-- **[Seeding Tutorial](TUTORIAL_SEEDING.md)** - Share files with others
-- **[Advanced Configuration](GUIDE_ADVANCED_CONFIG.md)** - Customize your setup
+- **[Basic Download Tutorial](tutorial-basic-download.md)** - Complete download manager
+- **[Seeding Tutorial](tutorial-seeding.md)** - Share files with others
+- **[Advanced Configuration](guide-advanced-config.md)** - Customize your setup
 
 ### Guides
-- **[Performance Tuning](GUIDE_PERFORMANCE_TUNING.md)** - Optimize for speed
-- **[Troubleshooting](GUIDE_TROUBLESHOOTING.md)** - Solve common problems
+- **[Performance Tuning](guide-performance-tuning.md)** - Optimize for speed
+- **[Troubleshooting](guide-troubleshooting.md)** - Solve common problems
 
 ### Reference
-- **[API Reference](API_REFERENCE.md)** - Complete API documentation
-- **[Error Handling](ERROR_HANDLING.md)** - Handle errors gracefully
-- **[Debugging Guide](DEBUGGING_GUIDE.md)** - Debug your torrent application
+- **[API Reference](api-reference.md)** - Complete API documentation
+- **[Error Handling](error-handling.md)** - Handle errors gracefully
+- **[Debugging Guide](debugging-guide.md)** - Debug your torrent application
 
 ---
 
@@ -364,7 +364,7 @@ Check out the `demo/` folder in the repository for complete working examples:
 
 ## Need Help?
 
-- **Documentation**: [API Reference](API_REFERENCE.md)
+- **Documentation**: [API Reference](api-reference.md)
 - **Issues**: [GitHub Issues](https://github.com/NodotProject/godot-torrent/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/NodotProject/godot-torrent/discussions)
 
@@ -372,4 +372,4 @@ Check out the `demo/` folder in the repository for complete working examples:
 
 **🎉 Congratulations!** You're now ready to build torrent-powered applications with Godot!
 
-Next: [Basic Download Tutorial →](TUTORIAL_BASIC_DOWNLOAD.md)
+Next: [Basic Download Tutorial →](tutorial-basic-download.md)

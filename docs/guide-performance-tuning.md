@@ -392,5 +392,5 @@ func apply_balanced_profile():
 ---
 
 **See also:**
-- [Advanced Configuration](GUIDE_ADVANCED_CONFIG.md)
-- [Troubleshooting](GUIDE_TROUBLESHOOTING.md)
+- [Advanced Configuration](guide-advanced-config.md)
+- [Troubleshooting](guide-troubleshooting.md)

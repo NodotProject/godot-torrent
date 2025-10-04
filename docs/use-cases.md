@@ -486,6 +486,6 @@ func apply_bandwidth_schedule():
 ---
 
 **Related**:
-- [Basic Download Tutorial](TUTORIAL_BASIC_DOWNLOAD.md)
-- [Advanced Configuration](GUIDE_ADVANCED_CONFIG.md)
-- [API Reference](API_REFERENCE.md)
+- [Basic Download Tutorial](tutorial-basic-download.md)
+- [Advanced Configuration](guide-advanced-config.md)
+- [API Reference](api-reference.md)

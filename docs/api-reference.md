@@ -1120,7 +1120,7 @@ Gets seconds until next tracker announce.
 
 Represents an error with code, category, and message.
 
-See `ERROR_HANDLING.md` for complete documentation.
+See `error-handling.md` for complete documentation.
 
 ### Creating Errors
 
@@ -1142,7 +1142,7 @@ var error = TorrentError.create(TorrentError.INVALID_TORRENT_FILE, "Custom messa
 
 Wrapper for operations that can fail.
 
-See `ERROR_HANDLING.md` for complete documentation.
+See `error-handling.md` for complete documentation.
 
 ### Usage
 
@@ -1163,7 +1163,7 @@ else:
 
 Centralized logging for debugging.
 
-See `DEBUGGING_GUIDE.md` for complete documentation.
+See `debugging-guide.md` for complete documentation.
 
 ### Quick Start
 
@@ -1368,8 +1368,8 @@ func load_resume_data(info_hash: String) -> PackedByteArray:
 
 ## Additional Resources
 
-- **Error Handling**: See `ERROR_HANDLING.md`
-- **Debugging**: See `DEBUGGING_GUIDE.md`
+- **Error Handling**: See `error-handling.md`
+- **Debugging**: See `debugging-guide.md`
 - **Examples**: See `examples/` directory (if available)
 - **libtorrent Docs**: https://libtorrent.org/reference.html
 
