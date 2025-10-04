@@ -5,6 +5,9 @@
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/array.hpp>
+#include <godot_cpp/variant/variant.hpp>
+#include <memory>
+#include <mutex>
 
 using namespace godot;
 
@@ -12,6 +15,17 @@ class TorrentInfo;
 class TorrentStatus;
 class PeerInfo;
 
+// Forward declaration for libtorrent torrent_handle
+namespace libtorrent {
+    class torrent_handle;
+}
+
+/**
+ * TorrentHandle - Real libtorrent::torrent_handle integration
+ * 
+ * This implementation replaces the stub with actual libtorrent::torrent_handle
+ * functionality. It gracefully handles both real libtorrent and stub mode.
+ */
 class TorrentHandle : public RefCounted {
     GDCLASS(TorrentHandle, RefCounted)
 
@@ -54,13 +68,42 @@ public:
     void flush_cache();
     void clear_error();
 
-    // STUB: Internal methods for future libtorrent integration  
-    void _set_internal_handle(const void* handle);
-    void* _get_internal_handle() const;
+    // Internal methods for libtorrent integration
+    void _set_internal_handle(const Variant& handle);
+    Variant _get_internal_handle() const;
 
 private:
-    bool _valid;
-    bool _paused; // STUB: track pause state
+    // Handle storage (using void* for stub compatibility)
+    void* _handle_ptr;
+    
+    // Handle state tracking
+    bool _is_valid;
+    bool _is_stub_mode;
+    
+    // Stub mode state tracking
+    bool _stub_paused;
+    String _stub_name;
+    String _stub_info_hash;
+    
+    // Thread safety
+    mutable std::mutex _handle_mutex;
+    
+    // Handle management
+    void cleanup_handle();
+    void detect_build_mode();
+    
+    // Error handling
+    void handle_operation_error(const std::string& operation, const std::exception& e) const;
+    void log_handle_operation(const String& operation, bool success = true) const;
+    
+    // Stub mode helpers
+    void simulate_handle_operation(const String& operation);
+    
+    // Validation helpers
+    bool validate_handle() const;
+    bool validate_piece_index(int piece_index) const;
+    bool validate_file_index(int file_index) const;
+    bool validate_priority(int priority) const;
 };
 
 #endif // TORRENT_HANDLE_H
