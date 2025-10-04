@@ -1,10 +1,10 @@
 # change the followings to match your Github username and repo name
-baseurl: "/Gedis" # the name of your github repo
+baseurl: "/godot-torrent" # the name of your github repo
 url: "https://nodotproject.github.io" # the url of your github pages
 
 # site information used in page title, meta data etc.
-title: "Gedis: A Redis-like datastore for Godot"
-description: An in-memory, Redis-like datastore for Godot.
+title: "Godot-Torrent"
+description: A comprehensive BitTorrent GDExtension for Godot 4, providing full protocol functionality with native C++ performance.
 
 # color theme for links
 theme-color: indigo # indigo|yellow|pink|green|stone|
