@@ -92,7 +92,10 @@ build_libtorrent() {
     
     # Check for Boost dependencies first
     echo -e "${YELLOW}Checking for Boost dependencies...${NC}"
-    if ! pkg-config --exists boost 2>/dev/null && ! find /usr/include -name "boost" -type d 2>/dev/null | grep -q boost; then
+    if ! pkg-config --exists boost 2>/dev/null \
+        && [ ! -d /usr/include/boost ] \
+        && [ ! -d /usr/local/include/boost ] \
+        && ! find /usr/include -name "boost" -type d 2>/dev/null | grep -q boost; then
         echo -e "${RED}Boost development libraries not found!${NC}"
         echo -e "${YELLOW}Please install Boost development libraries:${NC}"
         if [[ "$OSTYPE" == "linux-gnu"* ]]; then
