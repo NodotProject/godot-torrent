@@ -248,7 +248,7 @@ extern "C" {
 EOF
     
     # Compile stub library with better error handling
-    if g++ -fPIC -c libtorrent_stub.cpp -std=c++17 -O2 -o libtorrent_stub.o; then
+    if ${CXX:-g++} -fPIC -c libtorrent_stub.cpp -std=c++17 -O2 -o libtorrent_stub.o; then
         if ar rcs libtorrent-rasterbar.a libtorrent_stub.o; then
             rm -f libtorrent_stub.cpp libtorrent_stub.o
             echo -e "${GREEN}Stub library created: libtorrent-rasterbar.a${NC}"
