@@ -100,8 +100,16 @@ env.Append(LIBS=[File(os.path.join('godot-cpp', 'bin', godot_cpp_lib))])
 # Check if we have a built libtorrent library
 libtorrent_lib_path = os.path.join('libtorrent', 'build', 'libtorrent-rasterbar.a')
 if os.path.exists(libtorrent_lib_path):
-    env.Append(LIBS=[File(libtorrent_lib_path)])
-    print("Using custom built libtorrent:", libtorrent_lib_path)
+    # Check if library is substantial (real vs stub)
+    lib_size = os.path.getsize(libtorrent_lib_path)
+    if lib_size > 100000:  # > 100KB indicates real library
+        env.Append(LIBS=[File(libtorrent_lib_path)])
+        print("Using real libtorrent library:", libtorrent_lib_path, f"({lib_size} bytes)")
+    else:
+        env.Append(LIBS=[File(libtorrent_lib_path)])
+        env.Append(CPPDEFINES=['TORRENT_STUB_MODE'])
+        print("Using stub libtorrent library:", libtorrent_lib_path, f"({lib_size} bytes)")
+        print("NOTE: Building in stub mode - install Boost for full libtorrent functionality")
 else:
     # Try to find system libtorrent
     conf = Configure(env)
@@ -109,8 +117,9 @@ else:
         env.Append(LIBS=['torrent-rasterbar'])
         print("Using system libtorrent-rasterbar")
     else:
-        print("WARNING: libtorrent-rasterbar not found. Build may fail.")
+        print("ERROR: No libtorrent library found!")
         print("Run './build_local.sh linux' to build libtorrent first.")
+        Exit(1)
     env = conf.Finish()
 
 # Phase 3: System libraries (ENABLED)
@@ -140,7 +149,7 @@ print("============================================")
 
 src_files = [
     'src/register_types.cpp',
-    'src/torrent_session_phase2.cpp',  # Phase 2: Enhanced transition implementation
+    'src/torrent_session.cpp',     # Issue #2: Real session implementation (replaces phase2 stub)
     'src/torrent_handle.cpp',
     'src/torrent_info.cpp',
     'src/torrent_status.cpp',
