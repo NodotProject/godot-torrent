@@ -291,7 +291,7 @@ check_libtorrent_cache() {
     # Additional check for library file size (should be > 1KB for real library)
     local lib_file="libtorrent/build/libtorrent-rasterbar.${lib_ext}"
     if [ -f "$lib_file" ]; then
-        local file_size=$(stat -c%s "$lib_file" 2>/dev/null || echo "0")
+        local file_size=$(wc -c < "$lib_file" 2>/dev/null | tr -d '[:space:]' || echo "0")
         if [ "$file_size" -gt 1024 ]; then
             echo -e "${GREEN}libtorrent cache is valid! (${file_size} bytes)${NC}"
             return 0
