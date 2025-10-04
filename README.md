@@ -1,5 +1,9 @@
 # Godot-Torrent
 
+<p align="center">
+    <img width="256" height="256" alt="image" src="https://github.com/NodotProject/godot-torrent/blob/main/addons/godot-torrent/icon.png?raw=true" />
+</p>
+
 A comprehensive BitTorrent GDExtension for Godot 4, providing full protocol functionality with native C++ performance.
 
 [![Discord](https://img.shields.io/discord/1089846386566111322)](https://discord.gg/Rx9CZX4sjG) [![Mastodon](https://img.shields.io/mastodon/follow/110106863700290562?domain=mastodon.gamedev.place)](https://mastodon.gamedev.place/@krazyjakee) [![Youtube](https://img.shields.io/youtube/channel/subscribers/UColWkNMgHseKyU7D1QGeoyQ)](https://www.youtube.com/@GodotNodot) [![GitHub Sponsors](https://img.shields.io/github/sponsors/krazyjakee)](https://github.com/sponsors/krazyjakee) [![GitHub Stars](https://img.shields.io/github/stars/NodotProject/godot-torrent)](https://github.com/NodotProject/godot-torrent)
