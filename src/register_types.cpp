@@ -11,6 +11,9 @@
 #include "torrent_status.h"
 #include "peer_info.h"
 #include "alert_manager.h"
+#include "torrent_error.h"
+#include "torrent_result.h"
+#include "torrent_logger.h"
 
 using namespace godot;
 
@@ -19,6 +22,11 @@ void initialize_godot_torrent_module(ModuleInitializationLevel p_level) {
         return;
     }
     
+    // Register error handling and logging classes first
+    ClassDB::register_class<TorrentError>();
+    ClassDB::register_class<TorrentResult>();
+    ClassDB::register_class<TorrentLogger>();
+
     // Register your classes here when implemented
     ClassDB::register_class<TorrentSession>();
     ClassDB::register_class<TorrentHandle>();

@@ -53,6 +53,13 @@ public:
     int get_piece_priority(int piece_index) const;
     void set_file_priority(int file_index, int priority);
     int get_file_priority(int file_index) const;
+    void rename_file(int file_index, String new_name);
+    Array get_file_progress();
+
+    // Piece operations
+    bool have_piece(int piece_index) const;
+    void read_piece(int piece_index);
+    Array get_piece_availability() const;
     
     // Operations
     void force_recheck();
@@ -67,6 +74,23 @@ public:
     void scrape_tracker();
     void flush_cache();
     void clear_error();
+
+    // Tracker management
+    void add_tracker(String url, int tier = 0);
+    void remove_tracker(String url);
+    Array get_trackers() const;
+
+    // Web seed management
+    void add_url_seed(String url);
+    void remove_url_seed(String url);
+    void add_http_seed(String url);
+    void remove_http_seed(String url);
+    Array get_url_seeds() const;
+    Array get_http_seeds() const;
+
+    // Resume data management
+    void save_resume_data();
+    PackedByteArray get_resume_data();
 
     // Internal methods for libtorrent integration
     void _set_internal_handle(const Variant& handle);
@@ -84,7 +108,12 @@ private:
     bool _stub_paused;
     String _stub_name;
     String _stub_info_hash;
-    
+
+    // Resume data storage
+    PackedByteArray _resume_data;
+    bool _resume_data_ready;
+    mutable std::mutex _resume_data_mutex;
+
     // Thread safety
     mutable std::mutex _handle_mutex;
     
@@ -94,10 +123,11 @@ private:
     
     // Error handling
     void handle_operation_error(const std::string& operation, const std::exception& e) const;
+    void report_error(const String& operation, const String& message) const;
     void log_handle_operation(const String& operation, bool success = true) const;
     
     // Stub mode helpers
-    void simulate_handle_operation(const String& operation);
+    void simulate_handle_operation(const String& operation) const;
     
     // Validation helpers
     bool validate_handle() const;

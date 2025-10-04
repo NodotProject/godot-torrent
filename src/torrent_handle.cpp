@@ -33,7 +33,13 @@ void TorrentHandle::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_piece_priority", "piece_index"), &TorrentHandle::get_piece_priority);
     ClassDB::bind_method(D_METHOD("set_file_priority", "file_index", "priority"), &TorrentHandle::set_file_priority);
     ClassDB::bind_method(D_METHOD("get_file_priority", "file_index"), &TorrentHandle::get_file_priority);
-    
+    ClassDB::bind_method(D_METHOD("rename_file", "file_index", "new_name"), &TorrentHandle::rename_file);
+    ClassDB::bind_method(D_METHOD("get_file_progress"), &TorrentHandle::get_file_progress);
+
+    ClassDB::bind_method(D_METHOD("have_piece", "piece_index"), &TorrentHandle::have_piece);
+    ClassDB::bind_method(D_METHOD("read_piece", "piece_index"), &TorrentHandle::read_piece);
+    ClassDB::bind_method(D_METHOD("get_piece_availability"), &TorrentHandle::get_piece_availability);
+
     ClassDB::bind_method(D_METHOD("force_recheck"), &TorrentHandle::force_recheck);
     ClassDB::bind_method(D_METHOD("force_reannounce"), &TorrentHandle::force_reannounce);
     ClassDB::bind_method(D_METHOD("force_dht_announce"), &TorrentHandle::force_dht_announce);
@@ -44,7 +50,21 @@ void TorrentHandle::_bind_methods() {
     ClassDB::bind_method(D_METHOD("scrape_tracker"), &TorrentHandle::scrape_tracker);
     ClassDB::bind_method(D_METHOD("flush_cache"), &TorrentHandle::flush_cache);
     ClassDB::bind_method(D_METHOD("clear_error"), &TorrentHandle::clear_error);
-    
+
+    ClassDB::bind_method(D_METHOD("add_tracker", "url", "tier"), &TorrentHandle::add_tracker, DEFVAL(0));
+    ClassDB::bind_method(D_METHOD("remove_tracker", "url"), &TorrentHandle::remove_tracker);
+    ClassDB::bind_method(D_METHOD("get_trackers"), &TorrentHandle::get_trackers);
+
+    ClassDB::bind_method(D_METHOD("add_url_seed", "url"), &TorrentHandle::add_url_seed);
+    ClassDB::bind_method(D_METHOD("remove_url_seed", "url"), &TorrentHandle::remove_url_seed);
+    ClassDB::bind_method(D_METHOD("add_http_seed", "url"), &TorrentHandle::add_http_seed);
+    ClassDB::bind_method(D_METHOD("remove_http_seed", "url"), &TorrentHandle::remove_http_seed);
+    ClassDB::bind_method(D_METHOD("get_url_seeds"), &TorrentHandle::get_url_seeds);
+    ClassDB::bind_method(D_METHOD("get_http_seeds"), &TorrentHandle::get_http_seeds);
+
+    ClassDB::bind_method(D_METHOD("save_resume_data"), &TorrentHandle::save_resume_data);
+    ClassDB::bind_method(D_METHOD("get_resume_data"), &TorrentHandle::get_resume_data);
+
     // Internal methods for libtorrent integration
     ClassDB::bind_method(D_METHOD("_set_internal_handle", "handle"), &TorrentHandle::_set_internal_handle);
     ClassDB::bind_method(D_METHOD("_get_internal_handle"), &TorrentHandle::_get_internal_handle);
@@ -56,7 +76,8 @@ TorrentHandle::TorrentHandle() {
     _stub_paused = false;
     _stub_name = "Default Torrent";
     _stub_info_hash = "0123456789abcdef0123456789abcdef01234567";
-    
+    _resume_data_ready = false;
+
     detect_build_mode();
     
     if (_is_stub_mode) {
@@ -122,7 +143,7 @@ void TorrentHandle::pause() {
     std::lock_guard<std::mutex> lock(_handle_mutex);
     
     if (!validate_handle()) {
-        UtilityFunctions::print_rich("[color=yellow]Cannot pause: Invalid handle[/color]");
+        report_error("pause", "Invalid handle");
         return;
     }
     
@@ -146,7 +167,7 @@ void TorrentHandle::resume() {
     std::lock_guard<std::mutex> lock(_handle_mutex);
     
     if (!validate_handle()) {
-        UtilityFunctions::print_rich("[color=yellow]Cannot resume: Invalid handle[/color]");
+        report_error("resume", "Invalid handle");
         return;
     }
     
@@ -760,8 +781,13 @@ bool TorrentHandle::validate_priority(int priority) const {
 
 // Error handling
 void TorrentHandle::handle_operation_error(const std::string& operation, const std::exception& e) const {
-    String error_msg = "Handle error in " + String(operation.c_str()) + ": " + String(e.what());
-    UtilityFunctions::print_rich("[color=red]" + error_msg + "[/color]");
+    String error_msg = "[TorrentHandle::" + String(operation.c_str()) + "] Exception: " + String(e.what());
+    UtilityFunctions::push_error(error_msg);
+}
+
+void TorrentHandle::report_error(const String& operation, const String& message) const {
+    String error_msg = "[TorrentHandle::" + operation + "] " + message;
+    UtilityFunctions::push_error(error_msg);
 }
 
 void TorrentHandle::log_handle_operation(const String& operation, bool success) const {
@@ -774,6 +800,487 @@ void TorrentHandle::log_handle_operation(const String& operation, bool success) 
     }
 }
 
-void TorrentHandle::simulate_handle_operation(const String& operation) {
+void TorrentHandle::simulate_handle_operation(const String& operation) const {
     UtilityFunctions::print("STUB HANDLE: " + operation + " (real implementation active)");
+}
+
+void TorrentHandle::save_resume_data() {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+
+    if (!validate_handle()) {
+        UtilityFunctions::print_rich("[color=yellow]Cannot save resume data: Invalid handle[/color]");
+        return;
+    }
+
+    try {
+        if (!_is_stub_mode) {
+#ifndef TORRENT_STUB_MODE
+            libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
+            handle->save_resume_data(libtorrent::torrent_handle::save_info_dict);
+            log_handle_operation("Resume data save requested");
+#endif
+        } else {
+            simulate_handle_operation("save_resume_data");
+        }
+    } catch (const std::exception& e) {
+        handle_operation_error("save_resume_data", e);
+    }
+}
+
+PackedByteArray TorrentHandle::get_resume_data() {
+    std::lock_guard<std::mutex> lock(_resume_data_mutex);
+    return _resume_data;
+}
+
+void TorrentHandle::rename_file(int file_index, String new_name) {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+
+    if (!validate_handle()) {
+        UtilityFunctions::print_rich("[color=yellow]Cannot rename file: Invalid handle[/color]");
+        return;
+    }
+
+    if (!validate_file_index(file_index)) {
+        UtilityFunctions::print_rich("[color=yellow]Invalid file index[/color]");
+        return;
+    }
+
+    try {
+        if (!_is_stub_mode) {
+#ifndef TORRENT_STUB_MODE
+            libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
+            handle->rename_file(libtorrent::file_index_t(file_index), new_name.utf8().get_data());
+            log_handle_operation("Rename file " + String::num(file_index) + " to " + new_name);
+#endif
+        } else {
+            simulate_handle_operation("rename_file");
+        }
+    } catch (const std::exception& e) {
+        handle_operation_error("rename_file", e);
+    }
+}
+
+Array TorrentHandle::get_file_progress() {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+
+    Array progress;
+
+    if (!validate_handle()) {
+        return progress;
+    }
+
+    try {
+        if (!_is_stub_mode) {
+#ifndef TORRENT_STUB_MODE
+            libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
+            std::vector<int64_t> file_progress;
+            handle->file_progress(file_progress, libtorrent::torrent_handle::piece_granularity);
+
+            for (int64_t bytes : file_progress) {
+                progress.append(bytes);
+            }
+
+            log_handle_operation("Retrieved file progress for " + String::num(progress.size()) + " files");
+#endif
+        } else {
+            simulate_handle_operation("get_file_progress");
+        }
+    } catch (const std::exception& e) {
+        handle_operation_error("get_file_progress", e);
+    }
+
+    return progress;
+}
+
+bool TorrentHandle::have_piece(int piece_index) const {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+
+    if (!validate_handle()) {
+        return false;
+    }
+
+    if (!validate_piece_index(piece_index)) {
+        return false;
+    }
+
+    try {
+        if (!_is_stub_mode) {
+#ifndef TORRENT_STUB_MODE
+            libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
+            return handle->have_piece(libtorrent::piece_index_t(piece_index));
+#endif
+        } else {
+            return false; // Stub mode
+        }
+    } catch (const std::exception& e) {
+        handle_operation_error("have_piece", e);
+        return false;
+    }
+
+    return false;
+}
+
+void TorrentHandle::read_piece(int piece_index) {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+
+    if (!validate_handle()) {
+        UtilityFunctions::print_rich("[color=yellow]Cannot read piece: Invalid handle[/color]");
+        return;
+    }
+
+    if (!validate_piece_index(piece_index)) {
+        UtilityFunctions::print_rich("[color=yellow]Invalid piece index[/color]");
+        return;
+    }
+
+    try {
+        if (!_is_stub_mode) {
+#ifndef TORRENT_STUB_MODE
+            libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
+            handle->read_piece(libtorrent::piece_index_t(piece_index));
+            log_handle_operation("Read piece " + String::num(piece_index) + " requested");
+#endif
+        } else {
+            simulate_handle_operation("read_piece");
+        }
+    } catch (const std::exception& e) {
+        handle_operation_error("read_piece", e);
+    }
+}
+
+Array TorrentHandle::get_piece_availability() const {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+
+    Array availability;
+
+    if (!validate_handle()) {
+        return availability;
+    }
+
+    try {
+        if (!_is_stub_mode) {
+#ifndef TORRENT_STUB_MODE
+            libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
+            std::vector<int> piece_availability;
+            handle->piece_availability(piece_availability);
+
+            for (int avail : piece_availability) {
+                availability.append(avail);
+            }
+
+            log_handle_operation("Retrieved piece availability for " + String::num(availability.size()) + " pieces");
+#endif
+        } else {
+            simulate_handle_operation("get_piece_availability");
+        }
+    } catch (const std::exception& e) {
+        handle_operation_error("get_piece_availability", e);
+    }
+
+    return availability;
+}
+
+void TorrentHandle::add_tracker(String url, int tier) {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+
+    if (!validate_handle()) {
+        UtilityFunctions::print_rich("[color=yellow]Cannot add tracker: Invalid handle[/color]");
+        return;
+    }
+
+    if (url.is_empty()) {
+        UtilityFunctions::print_rich("[color=yellow]Cannot add tracker: URL is empty[/color]");
+        return;
+    }
+
+    try {
+        if (!_is_stub_mode) {
+#ifndef TORRENT_STUB_MODE
+            libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
+            libtorrent::announce_entry ae(url.utf8().get_data());
+            ae.tier = tier;
+            std::vector<libtorrent::announce_entry> trackers;
+            trackers.push_back(ae);
+            handle->add_tracker(ae);
+            log_handle_operation("Added tracker: " + url + " (tier " + String::num(tier) + ")");
+#endif
+        } else {
+            simulate_handle_operation("add_tracker");
+        }
+    } catch (const std::exception& e) {
+        handle_operation_error("add_tracker", e);
+    }
+}
+
+void TorrentHandle::remove_tracker(String url) {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+
+    if (!validate_handle()) {
+        UtilityFunctions::print_rich("[color=yellow]Cannot remove tracker: Invalid handle[/color]");
+        return;
+    }
+
+    if (url.is_empty()) {
+        UtilityFunctions::print_rich("[color=yellow]Cannot remove tracker: URL is empty[/color]");
+        return;
+    }
+
+    try {
+        if (!_is_stub_mode) {
+#ifndef TORRENT_STUB_MODE
+            libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
+            std::vector<libtorrent::announce_entry> trackers = handle->trackers();
+
+            // Find and remove the tracker
+            bool found = false;
+            for (auto it = trackers.begin(); it != trackers.end(); ++it) {
+                if (it->url == url.utf8().get_data()) {
+                    trackers.erase(it);
+                    found = true;
+                    break;
+                }
+            }
+
+            if (found) {
+                handle->replace_trackers(trackers);
+                log_handle_operation("Removed tracker: " + url);
+            } else {
+                UtilityFunctions::print_rich("[color=yellow]Tracker not found: " + url + "[/color]");
+            }
+#endif
+        } else {
+            simulate_handle_operation("remove_tracker");
+        }
+    } catch (const std::exception& e) {
+        handle_operation_error("remove_tracker", e);
+    }
+}
+
+Array TorrentHandle::get_trackers() const {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+
+    Array trackers;
+
+    if (!validate_handle()) {
+        return trackers;
+    }
+
+    try {
+        if (!_is_stub_mode) {
+#ifndef TORRENT_STUB_MODE
+            libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
+            std::vector<libtorrent::announce_entry> tracker_list = handle->trackers();
+
+            for (const auto& tracker : tracker_list) {
+                Dictionary tracker_info;
+                tracker_info["url"] = String(tracker.url.c_str());
+                tracker_info["tier"] = tracker.tier;
+                tracker_info["fail_limit"] = tracker.fail_limit;
+                tracker_info["source"] = static_cast<int>(tracker.source);
+                tracker_info["verified"] = tracker.verified;
+
+                // Get endpoint information
+                Array endpoints;
+                for (const auto& endpoint : tracker.endpoints) {
+                    Dictionary ep_info;
+                    ep_info["fails"] = endpoint.fails;
+                    ep_info["updating"] = endpoint.updating;
+                    ep_info["start_sent"] = endpoint.start_sent;
+                    ep_info["complete_sent"] = endpoint.complete_sent;
+
+                    if (endpoint.message.size() > 0) {
+                        ep_info["message"] = String(endpoint.message.c_str());
+                    }
+
+                    endpoints.append(ep_info);
+                }
+                tracker_info["endpoints"] = endpoints;
+
+                trackers.append(tracker_info);
+            }
+
+            log_handle_operation("Retrieved " + String::num(trackers.size()) + " trackers");
+#endif
+        } else {
+            simulate_handle_operation("get_trackers");
+        }
+    } catch (const std::exception& e) {
+        handle_operation_error("get_trackers", e);
+    }
+
+    return trackers;
+}
+
+void TorrentHandle::add_url_seed(String url) {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+
+    if (!validate_handle()) {
+        UtilityFunctions::print_rich("[color=yellow]Cannot add URL seed: Invalid handle[/color]");
+        return;
+    }
+
+    if (url.is_empty()) {
+        UtilityFunctions::print_rich("[color=yellow]Cannot add URL seed: URL is empty[/color]");
+        return;
+    }
+
+    try {
+        if (!_is_stub_mode) {
+#ifndef TORRENT_STUB_MODE
+            libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
+            handle->add_url_seed(url.utf8().get_data());
+            log_handle_operation("Added URL seed: " + url);
+#endif
+        } else {
+            simulate_handle_operation("add_url_seed");
+        }
+    } catch (const std::exception& e) {
+        handle_operation_error("add_url_seed", e);
+    }
+}
+
+void TorrentHandle::remove_url_seed(String url) {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+
+    if (!validate_handle()) {
+        UtilityFunctions::print_rich("[color=yellow]Cannot remove URL seed: Invalid handle[/color]");
+        return;
+    }
+
+    if (url.is_empty()) {
+        UtilityFunctions::print_rich("[color=yellow]Cannot remove URL seed: URL is empty[/color]");
+        return;
+    }
+
+    try {
+        if (!_is_stub_mode) {
+#ifndef TORRENT_STUB_MODE
+            libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
+            handle->remove_url_seed(url.utf8().get_data());
+            log_handle_operation("Removed URL seed: " + url);
+#endif
+        } else {
+            simulate_handle_operation("remove_url_seed");
+        }
+    } catch (const std::exception& e) {
+        handle_operation_error("remove_url_seed", e);
+    }
+}
+
+void TorrentHandle::add_http_seed(String url) {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+
+    if (!validate_handle()) {
+        UtilityFunctions::print_rich("[color=yellow]Cannot add HTTP seed: Invalid handle[/color]");
+        return;
+    }
+
+    if (url.is_empty()) {
+        UtilityFunctions::print_rich("[color=yellow]Cannot add HTTP seed: URL is empty[/color]");
+        return;
+    }
+
+    try {
+        if (!_is_stub_mode) {
+#ifndef TORRENT_STUB_MODE
+            libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
+            handle->add_http_seed(url.utf8().get_data());
+            log_handle_operation("Added HTTP seed: " + url);
+#endif
+        } else {
+            simulate_handle_operation("add_http_seed");
+        }
+    } catch (const std::exception& e) {
+        handle_operation_error("add_http_seed", e);
+    }
+}
+
+void TorrentHandle::remove_http_seed(String url) {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+
+    if (!validate_handle()) {
+        UtilityFunctions::print_rich("[color=yellow]Cannot remove HTTP seed: Invalid handle[/color]");
+        return;
+    }
+
+    if (url.is_empty()) {
+        UtilityFunctions::print_rich("[color=yellow]Cannot remove HTTP seed: URL is empty[/color]");
+        return;
+    }
+
+    try {
+        if (!_is_stub_mode) {
+#ifndef TORRENT_STUB_MODE
+            libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
+            handle->remove_http_seed(url.utf8().get_data());
+            log_handle_operation("Removed HTTP seed: " + url);
+#endif
+        } else {
+            simulate_handle_operation("remove_http_seed");
+        }
+    } catch (const std::exception& e) {
+        handle_operation_error("remove_http_seed", e);
+    }
+}
+
+Array TorrentHandle::get_url_seeds() const {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+
+    Array seeds;
+
+    if (!validate_handle()) {
+        return seeds;
+    }
+
+    try {
+        if (!_is_stub_mode) {
+#ifndef TORRENT_STUB_MODE
+            libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
+            std::set<std::string> url_seeds = handle->url_seeds();
+
+            for (const auto& seed : url_seeds) {
+                seeds.append(String(seed.c_str()));
+            }
+
+            log_handle_operation("Retrieved " + String::num(seeds.size()) + " URL seeds");
+#endif
+        } else {
+            simulate_handle_operation("get_url_seeds");
+        }
+    } catch (const std::exception& e) {
+        handle_operation_error("get_url_seeds", e);
+    }
+
+    return seeds;
+}
+
+Array TorrentHandle::get_http_seeds() const {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+
+    Array seeds;
+
+    if (!validate_handle()) {
+        return seeds;
+    }
+
+    try {
+        if (!_is_stub_mode) {
+#ifndef TORRENT_STUB_MODE
+            libtorrent::torrent_handle* handle = static_cast<libtorrent::torrent_handle*>(_handle_ptr);
+            std::set<std::string> http_seeds = handle->http_seeds();
+
+            for (const auto& seed : http_seeds) {
+                seeds.append(String(seed.c_str()));
+            }
+
+            log_handle_operation("Retrieved " + String::num(seeds.size()) + " HTTP seeds");
+#endif
+        } else {
+            simulate_handle_operation("get_http_seeds");
+        }
+    } catch (const std::exception& e) {
+        handle_operation_error("get_http_seeds", e);
+    }
+
+    return seeds;
 }

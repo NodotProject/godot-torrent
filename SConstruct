@@ -141,6 +141,9 @@ print("============================================")
 
 src_files = [
     'src/register_types.cpp',
+    'src/torrent_error.cpp',       # Issue #35: Standardized error handling
+    'src/torrent_result.cpp',      # Issue #35: Result wrapper for error handling
+    'src/torrent_logger.cpp',      # Issue #36: Logging integration
     'src/torrent_session.cpp',     # Issue #2: Real session implementation (replaces phase2 stub)
     'src/torrent_handle.cpp',
     'src/torrent_info.cpp',
