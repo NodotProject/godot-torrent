@@ -72,7 +72,7 @@ jobs:
         with:
           path: |
             libtorrent/build
-          key: libtorrent-v4-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
+          key: libtorrent-v5-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
 
       - name: Build libtorrent
         if: steps.cache-libtorrent.outputs.cache-hit != 'true'
@@ -90,6 +90,7 @@ jobs:
               -DBOOST_INCLUDEDIR=/usr/x86_64-w64-mingw32/include \
               -DBoost_INCLUDE_DIR=/usr/x86_64-w64-mingw32/include \
               -Dencryption=OFF \
+              -DTORRENT_USE_OPENSSL=OFF \
               -Dstatic_runtime=ON -Dbuild_shared_libs=OFF -Dbuild_tests=OFF \
               -Dbuild_examples=OFF -Dbuild_tools=OFF
           elif [ "${{ matrix.platform }}" == "macos" ]; then
@@ -211,25 +212,17 @@ jobs:
         if: matrix.platform == 'windows'
         run: |
           sudo apt-get update
-          sudo apt-get install -y mingw-w64 mingw-w64-tools mingw-w64-x86-64-dev mingw-w64-common libssl-dev:amd64 wget
-          # Install MinGW-specific OpenSSL development headers
-          sudo apt-get install -y libssl-dev
+          sudo apt-get install -y mingw-w64 mingw-w64-tools mingw-w64-x86-64-dev mingw-w64-common wget
           # Download and extract Boost headers for MinGW
           wget -nv https://sourceforge.net/projects/boost/files/boost/1.83.0/boost_1_83_0.tar.gz/download -O boost_1_83_0.tar.gz
           tar xzf boost_1_83_0.tar.gz
           sudo mkdir -p /usr/x86_64-w64-mingw32/include
           sudo cp -r boost_1_83_0/boost /usr/x86_64-w64-mingw32/include/
-          # Copy system OpenSSL headers (they're compatible for header-only usage)
-          sudo cp -r /usr/include/openssl /usr/x86_64-w64-mingw32/include/
-          # Copy architecture-specific OpenSSL configuration for OpenSSL 3.x
-          sudo cp /usr/include/x86_64-linux-gnu/openssl/configuration.h /usr/x86_64-w64-mingw32/include/openssl/
-          # Also copy opensslconf.h if it exists (for backwards compatibility)
-          sudo cp /usr/include/x86_64-linux-gnu/openssl/opensslconf.h /usr/x86_64-w64-mingw32/include/openssl/ 2>/dev/null || true
           # Verify MinGW sysroot and headers
           echo "MinGW sysroot contents:"
           ls -la /usr/x86_64-w64-mingw32/
-          echo "OpenSSL headers available:"
-          ls -la /usr/x86_64-w64-mingw32/include/openssl/ | head -10
+          echo "Boost headers available:"
+          ls -la /usr/x86_64-w64-mingw32/include/boost/ | head -10
           # Set up proper cross-compilation environment
           export MINGW_PREFIX="/usr/x86_64-w64-mingw32"
           export CC="x86_64-w64-mingw32-gcc"
@@ -240,7 +233,7 @@ jobs:
         with:
           path: |
             libtorrent/build
-          key: libtorrent-v4-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
+          key: libtorrent-v5-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
 
       - name: Debug libtorrent cache contents
         run: |

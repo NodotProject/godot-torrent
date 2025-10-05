@@ -70,8 +70,7 @@ elif use_mingw or platform == 'windows':
     # For Windows cross-compilation, add MinGW-specific paths
     env.Append(CPPPATH=[
         '/usr/x86_64-w64-mingw32/include',  # MinGW system headers
-        '/usr/x86_64-w64-mingw32/include/boost',  # MinGW Boost headers
-        '/usr/x86_64-w64-mingw32/include/openssl'  # MinGW OpenSSL headers
+        '/usr/x86_64-w64-mingw32/include/boost'  # MinGW Boost headers
     ])
     # Ensure MinGW uses its own sysroot and headers
     env.Append(CCFLAGS=['--sysroot=/usr/x86_64-w64-mingw32'])
@@ -90,12 +89,11 @@ if is_windows and not use_mingw:
     env.Append(CPPDEFINES=['TORRENT_USE_OPENSSL'])
 elif is_windows and use_mingw:
     # MinGW flags (similar to Linux but for Windows target)
-    # CRITICAL: Define OPENSSL_API_COMPAT for OpenSSL 3.x (Ubuntu 24.04 uses 3.0.x)
-    # Must be defined as compiler flag BEFORE any headers are included
-    env.Append(CCFLAGS=['-fPIC', '-DOPENSSL_API_COMPAT=0x30000000L'])
+    # Disable OpenSSL for Windows cross-compilation to avoid linking issues
+    env.Append(CCFLAGS=['-fPIC'])
     env.Append(CXXFLAGS=['-std=c++17'])
-    # Add Windows-specific defines for MinGW
-    env.Append(CPPDEFINES=['WIN32', '_WIN32', 'WINDOWS_ENABLED', 'TORRENT_USE_OPENSSL'])
+    # Add Windows-specific defines for MinGW (removed TORRENT_USE_OPENSSL)
+    env.Append(CPPDEFINES=['WIN32', '_WIN32', 'WINDOWS_ENABLED'])
     # Match godot-cpp's MinGW linking configuration for compatibility
     env.Append(CCFLAGS=['-Wwrite-strings'])
     env.Append(LINKFLAGS=['-Wl,--no-undefined'])
@@ -154,6 +152,7 @@ else:
     env = conf.Finish()
 
 if is_windows:
+    # Windows libraries - removed SSL libraries to avoid MinGW linking issues
     env.Append(LIBS=['ws2_32', 'wsock32', 'iphlpapi', 'crypt32'])
 elif platform == 'linux':
     env.Append(LIBS=['pthread', 'ssl', 'crypto', 'dl'])
