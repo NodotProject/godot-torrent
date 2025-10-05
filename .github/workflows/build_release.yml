@@ -72,7 +72,7 @@ jobs:
         with:
           path: |
             libtorrent/build
-          key: libtorrent-v2-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
+          key: libtorrent-v3-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
 
       - name: Build libtorrent
         if: steps.cache-libtorrent.outputs.cache-hit != 'true'
@@ -223,7 +223,18 @@ jobs:
         with:
           path: |
             libtorrent/build
-          key: libtorrent-v2-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
+          key: libtorrent-v3-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
+
+      - name: Debug libtorrent cache contents
+        run: |
+          echo "=== Checking libtorrent cache contents ==="
+          ls -la libtorrent/build/ || echo "libtorrent/build directory does not exist"
+          if [ -f libtorrent/build/libtorrent-rasterbar.a ]; then
+            echo "libtorrent-rasterbar.a exists, size: $(wc -c < libtorrent/build/libtorrent-rasterbar.a) bytes"
+            file libtorrent/build/libtorrent-rasterbar.a
+          else
+            echo "libtorrent-rasterbar.a does not exist"
+          fi
 
       - name: Restore godot-cpp cache
         uses: actions/cache/restore@v4
