@@ -28,10 +28,10 @@ jobs:
             os-name: Windows
             platform: windows
             arch: x86_64
-          - os: macos-latest
-            os-name: macOS
-            platform: macos
-            arch: universal
+          # - os: macos-latest
+          #   os-name: macOS
+          #   platform: macos
+          #   arch: universal
     
     steps:
       - name: Checkout repository
@@ -120,10 +120,10 @@ jobs:
             os-name: Windows
             platform: windows
             arch: x86_64
-          - os: macos-latest
-            os-name: macOS
-            platform: macos
-            arch: universal
+          # - os: macos-latest
+          #   os-name: macOS
+          #   platform: macos
+          #   arch: universal
     
     steps:
       - name: Checkout repository
@@ -181,11 +181,11 @@ jobs:
             platform: windows
             arch: x86_64
             extension: dll
-          - os: macos-latest
-            os-name: macOS
-            platform: macos
-            arch: universal
-            extension: dylib
+          # - os: macos-latest
+          #   os-name: macOS
+          #   platform: macos
+          #   arch: universal
+          #   extension: dylib
     
     steps:
       - name: Checkout repository
@@ -261,8 +261,8 @@ jobs:
           unzip artifacts/godot-torrent-linux-x86_64/godot-torrent-linux-x86_64.zip -d release_package
           unzip artifacts/godot-torrent-windows-x86_64/godot-torrent-windows-x86_64.zip -d temp_windows
           cp -r temp_windows/addons/godot-torrent/bin/* release_package/addons/godot-torrent/bin/ || true
-          unzip artifacts/godot-torrent-macos-universal/godot-torrent-macos-universal.zip -d temp_macos
-          cp -r temp_macos/addons/godot-torrent/bin/* release_package/addons/godot-torrent/bin/ || true
+          # unzip artifacts/godot-torrent-macos-universal/godot-torrent-macos-universal.zip -d temp_macos
+          # cp -r temp_macos/addons/godot-torrent/bin/* release_package/addons/godot-torrent/bin/ || true
           cd release_package
           zip -r ../godot-torrent-release.zip .
 
