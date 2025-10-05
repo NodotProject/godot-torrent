@@ -72,6 +72,9 @@ elif use_mingw or platform == 'windows':
         '/usr/x86_64-w64-mingw32/include',  # MinGW system headers
         '/usr/x86_64-w64-mingw32/include/boost'  # MinGW Boost headers
     ])
+    # Ensure MinGW uses its own sysroot and headers
+    env.Append(CCFLAGS=['--sysroot=/usr/x86_64-w64-mingw32'])
+    env.Append(LINKFLAGS=['--sysroot=/usr/x86_64-w64-mingw32'])
 
 if platform == 'macos':
     # Add Homebrew OpenSSL lib path for macOS
