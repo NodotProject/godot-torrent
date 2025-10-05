@@ -1,8 +1,14 @@
 ---
 layout: home
+title: Home
+permalink: /
 ---
 
-Welcome to the comprehensive documentation for Godot-Torrent, a full-featured BitTorrent GDExtension for Godot 4.
+<p align="center">
+    <img width="256" height="256" alt="image" src="https://github.com/NodotProject/godot-torrent/blob/main/addons/godot-torrent/icon.png?raw=true" />
+</p>
+
+Welcome to the documentation for Godot-Torrent, a full-featured BitTorrent GDExtension for Godot 4.
 
 ## Getting Started
 
