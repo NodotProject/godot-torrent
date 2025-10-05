@@ -64,7 +64,7 @@ jobs:
       - name: Install dependencies (macOS)
         if: matrix.platform == 'macos'
         run: |
-          brew install cmake boost openssl
+          brew install cmake boost
 
       - name: Cache libtorrent
         id: cache-libtorrent
@@ -93,16 +93,11 @@ jobs:
               -Dstatic_runtime=ON -Dbuild_shared_libs=OFF -Dbuild_tests=OFF \
               -Dbuild_examples=OFF -Dbuild_tools=OFF
           elif [ "${{ matrix.platform }}" == "macos" ]; then
-            OPENSSL_ROOT_DIR=$(brew --prefix openssl)
             cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
               -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+              -Dencryption=OFF \
               -Dstatic_runtime=ON -Dbuild_shared_libs=OFF -Dbuild_tests=OFF \
-              -Dbuild_examples=OFF -Dbuild_tools=OFF \
-              -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT_DIR" \
-              -DOPENSSL_LIBRARIES="$OPENSSL_ROOT_DIR/lib" \
-              -DOPENSSL_INCLUDE_DIR="$OPENSSL_ROOT_DIR/include" \
-              -DOPENSSL_CRYPTO_LIBRARY="$OPENSSL_ROOT_DIR/lib/libcrypto.dylib" \
-              -DOPENSSL_SSL_LIBRARY="$OPENSSL_ROOT_DIR/lib/libssl.dylib"
+              -Dbuild_examples=OFF -Dbuild_tools=OFF
           fi
           
           make -j$(nproc || sysctl -n hw.ncpu)
