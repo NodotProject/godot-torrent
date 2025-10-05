@@ -219,15 +219,21 @@ jobs:
           tar xzf boost_1_83_0.tar.gz
           sudo mkdir -p /usr/x86_64-w64-mingw32/include
           sudo cp -r boost_1_83_0/boost /usr/x86_64-w64-mingw32/include/
-          # Download and set up OpenSSL for MinGW
-          wget -nv https://www.openssl.org/source/openssl-1.1.1w.tar.gz
-          tar xzf openssl-1.1.1w.tar.gz
-          sudo cp -r openssl-1.1.1w/include/openssl /usr/x86_64-w64-mingw32/include/
+          # Copy system OpenSSL headers (they're compatible for header-only usage)
+          sudo cp -r /usr/include/openssl /usr/x86_64-w64-mingw32/include/
+          # Create opensslconf.h for Windows (basic compatibility header)
+          sudo tee /usr/x86_64-w64-mingw32/include/openssl/opensslconf.h > /dev/null <<'EOF'
+          #ifndef HEADER_OPENSSLCONF_H
+          #define HEADER_OPENSSLCONF_H
+          #define OPENSSL_THREADS
+          #define OPENSSL_NO_STATIC_ENGINE
+          #endif
+          EOF
           # Verify MinGW sysroot and headers
           echo "MinGW sysroot contents:"
           ls -la /usr/x86_64-w64-mingw32/
           echo "OpenSSL headers available:"
-          ls -la /usr/x86_64-w64-mingw32/include/openssl/ | head -5
+          ls -la /usr/x86_64-w64-mingw32/include/openssl/ | head -10
           # Set up proper cross-compilation environment
           export MINGW_PREFIX="/usr/x86_64-w64-mingw32"
           export CC="x86_64-w64-mingw32-gcc"
