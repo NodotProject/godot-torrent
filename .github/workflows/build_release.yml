@@ -64,7 +64,7 @@ jobs:
       - name: Install dependencies (macOS)
         if: matrix.platform == 'macos'
         run: |
-          brew install cmake boost
+          brew install cmake boost openssl@3
 
       - name: Cache libtorrent
         id: cache-libtorrent
@@ -72,7 +72,7 @@ jobs:
         with:
           path: |
             libtorrent/build
-          key: libtorrent-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
+          key: libtorrent-v2-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
 
       - name: Build libtorrent
         if: steps.cache-libtorrent.outputs.cache-hit != 'true'
@@ -93,9 +93,12 @@ jobs:
               -Dstatic_runtime=ON -Dbuild_shared_libs=OFF -Dbuild_tests=OFF \
               -Dbuild_examples=OFF -Dbuild_tools=OFF
           elif [ "${{ matrix.platform }}" == "macos" ]; then
+            OPENSSL_ROOT=$(brew --prefix openssl@3)
             cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
               -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
-              -Dencryption=OFF \
+              -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT" \
+              -DOPENSSL_CRYPTO_LIBRARY="$OPENSSL_ROOT/lib/libcrypto.dylib" \
+              -DOPENSSL_SSL_LIBRARY="$OPENSSL_ROOT/lib/libssl.dylib" \
               -Dstatic_runtime=ON -Dbuild_shared_libs=OFF -Dbuild_tests=OFF \
               -Dbuild_examples=OFF -Dbuild_tools=OFF
           fi
