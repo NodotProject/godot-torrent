@@ -235,6 +235,12 @@ jobs:
           else
             echo "libtorrent-rasterbar.a does not exist"
           fi
+          if [ -f libtorrent/build/libtorrent-rasterbar.dll.a ]; then
+            echo "libtorrent-rasterbar.dll.a exists, size: $(wc -c < libtorrent/build/libtorrent-rasterbar.dll.a) bytes"
+            file libtorrent/build/libtorrent-rasterbar.dll.a
+          else
+            echo "libtorrent-rasterbar.dll.a does not exist"
+          fi
 
       - name: Restore godot-cpp cache
         uses: actions/cache/restore@v4
