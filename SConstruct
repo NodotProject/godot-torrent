@@ -49,17 +49,29 @@ if cache_dir:
 
 # Add include paths for godot-cpp and libtorrent
 env.Append(CPPPATH=[
-    'src', 
-    '.', 
+    'src',
+    '.',
     'godot-cpp/include', 
     'godot-cpp/gen/include', 
     'godot-cpp/gdextension',
     'libtorrent/include',
-    '/usr/include',  # For system libtorrent headers
-    '/usr/include/libtorrent',  # Specific path for libtorrent headers
-    '/usr/local/include', # For Boost headers
-    '/usr/local/include/boost' # Specific path for Boost headers
 ])
+
+# Platform-specific include paths - only add system paths for native builds
+if not use_mingw and platform != 'windows':
+    # Only add Linux/macOS system paths for native builds
+    env.Append(CPPPATH=[
+        '/usr/include',  # For system libtorrent headers
+        '/usr/include/libtorrent',  # Specific path for libtorrent headers
+        '/usr/local/include', # For Boost headers
+        '/usr/local/include/boost' # Specific path for Boost headers
+    ])
+elif use_mingw or platform == 'windows':
+    # For Windows cross-compilation, add MinGW-specific paths
+    env.Append(CPPPATH=[
+        '/usr/x86_64-w64-mingw32/include',  # MinGW system headers
+        '/usr/x86_64-w64-mingw32/include/boost'  # MinGW Boost headers
+    ])
 
 if platform == 'macos':
     # Add Homebrew OpenSSL lib path for macOS
