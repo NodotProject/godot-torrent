@@ -221,17 +221,10 @@ jobs:
           sudo cp -r boost_1_83_0/boost /usr/x86_64-w64-mingw32/include/
           # Copy system OpenSSL headers (they're compatible for header-only usage)
           sudo cp -r /usr/include/openssl /usr/x86_64-w64-mingw32/include/
-          # Create opensslconf.h for Windows (basic compatibility header)
-          # Using 0x30000000L for OpenSSL 3.x compatibility (Ubuntu 24.04 uses OpenSSL 3.0.x)
-          sudo tee /usr/x86_64-w64-mingw32/include/openssl/opensslconf.h > /dev/null <<'EOF'
-          #ifndef HEADER_OPENSSLCONF_H
-          #define HEADER_OPENSSLCONF_H
-          #define OPENSSL_THREADS
-          #define OPENSSL_NO_STATIC_ENGINE
-          #define OPENSSL_API_COMPAT 0x30000000L
-          typedef unsigned long BN_ULONG;
-          #endif
-          EOF
+          # Copy architecture-specific OpenSSL configuration for OpenSSL 3.x
+          sudo cp /usr/include/x86_64-linux-gnu/openssl/configuration.h /usr/x86_64-w64-mingw32/include/openssl/
+          # Also copy opensslconf.h if it exists (for backwards compatibility)
+          sudo cp /usr/include/x86_64-linux-gnu/openssl/opensslconf.h /usr/x86_64-w64-mingw32/include/openssl/ 2>/dev/null || true
           # Verify MinGW sysroot and headers
           echo "MinGW sysroot contents:"
           ls -la /usr/x86_64-w64-mingw32/
