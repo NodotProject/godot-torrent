@@ -107,8 +107,16 @@ libtorrent_lib_path = os.path.join('libtorrent', 'build', 'libtorrent-rasterbar.
 if os.path.exists(libtorrent_lib_path):
     env.Append(LIBS=[File(libtorrent_lib_path)])
     print("Using libtorrent library:", libtorrent_lib_path)
+elif use_mingw or platform == 'windows':
+    # When cross-compiling for Windows, don't try system detection
+    # as it won't work on the Linux host
+    print("ERROR: No libtorrent library found for Windows cross-compilation!")
+    print("This is a pure wrapper - real libtorrent is required.")
+    print("The libtorrent cache may not have been restored properly.")
+    print("Expected library at:", libtorrent_lib_path)
+    Exit(1)
 else:
-    # Try to find system libtorrent
+    # Try to find system libtorrent (Linux/macOS native builds only)
     conf = Configure(env)
     if conf.CheckLib('torrent-rasterbar'):
         env.Append(LIBS=['torrent-rasterbar'])
