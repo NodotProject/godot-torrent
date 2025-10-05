@@ -81,7 +81,7 @@ jobs:
               -Dbuild_examples=OFF -Dbuild_tools=OFF
           elif [ "${{ matrix.platform }}" == "windows" ]; then
             cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-              -DCMAKE_TOOLCHAIN_FILE=../cmake/mingw-w64-x86_64.cmake \
+              -DCMAKE_TOOLCHAIN_FILE=../../cmake/mingw-w64-x86_64.cmake \
               -Dstatic_runtime=ON -Dbuild_shared_libs=OFF -Dbuild_tests=OFF \
               -Dbuild_examples=OFF -Dbuild_tools=OFF
           elif [ "${{ matrix.platform }}" == "macos" ]; then
