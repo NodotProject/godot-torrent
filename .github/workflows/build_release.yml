@@ -54,9 +54,9 @@ jobs:
         if: matrix.platform == 'windows'
         run: |
           sudo apt-get update
-          sudo apt-get install -y mingw-w64 cmake wget unzip
+          sudo apt-get install -y mingw-w64 cmake wget
           # Download and extract Boost headers for MinGW
-          wget -q https://boostorg.jfrog.io/artifactory/main/release/1.83.0/source/boost_1_83_0.tar.gz
+          wget -nv https://sourceforge.net/projects/boost/files/boost/1.83.0/boost_1_83_0.tar.gz/download -O boost_1_83_0.tar.gz
           tar xzf boost_1_83_0.tar.gz
           sudo mkdir -p /usr/x86_64-w64-mingw32/include
           sudo cp -r boost_1_83_0/boost /usr/x86_64-w64-mingw32/include/
