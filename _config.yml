@@ -18,14 +18,14 @@ author-image: false
 show-nav-menu: true
 
 nav-menu:
-- text: Installation
-  permalink: installation
-- text: Usage
-  permalink: usage-examples
-- text: Reference
+- text: Getting Started
+  permalink: getting-started
+- text: Tutorials
+  permalink: tutorial-basic-download
+- text: Guides
+  permalink: guide-advanced-config
+- text: API Reference
   permalink: api-reference
-- text: Contribution
-  permalink: contribution-instructions
 
 # use false to turn off any social media links
 twitter: false
@@ -55,3 +55,11 @@ optional_front_matter:
 relative_links:
   enabled: true
   collections: false
+
+# Set default layout for all pages (except index which uses home layout)
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: page

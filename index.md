@@ -1,4 +1,6 @@
-# Godot-Torrent Documentation
+---
+layout: home
+---
 
 Welcome to the comprehensive documentation for Godot-Torrent, a full-featured BitTorrent GDExtension for Godot 4.
 

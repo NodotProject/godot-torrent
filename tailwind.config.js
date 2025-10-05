@@ -28,6 +28,14 @@ module.exports = {
             "blockquote p:last-of-type::after": false,
           },
         },
+        invert: {
+          css: {
+            code: {
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              color: "inherit",
+            },
+          },
+        },
       },
       fontFamily: {
         sans: ['Inter var', ...defaultTheme.fontFamily.sans],

@@ -1,0 +1,9 @@
+/* Custom CSS overrides for godot-torrent documentation */
+
+/* Fix dark mode code styling - override TailwindCSS prose */
+@media (prefers-color-scheme: dark) {
+  .dark\:prose-invert :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    background-color: rgba(0, 0, 0, 0.5);
+    color: inherit;
+  }
+}
