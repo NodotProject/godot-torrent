@@ -200,19 +200,30 @@ jobs:
 
       - name: Install SCons
         run: pip install scons
+
+      - name: Install dependencies (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libboost-dev libssl-dev
         
       - name: Install MinGW (for Windows cross-compilation)
         if: matrix.platform == 'windows'
         run: |
           sudo apt-get update
-          sudo apt-get install -y mingw-w64
+          sudo apt-get install -y mingw-w64 wget
+          # Download and extract Boost headers for MinGW
+          wget -nv https://sourceforge.net/projects/boost/files/boost/1.83.0/boost_1_83_0.tar.gz/download -O boost_1_83_0.tar.gz
+          tar xzf boost_1_83_0.tar.gz
+          sudo mkdir -p /usr/x86_64-w64-mingw32/include
+          sudo cp -r boost_1_83_0/boost /usr/x86_64-w64-mingw32/include/
 
       - name: Restore libtorrent cache
         uses: actions/cache/restore@v4
         with:
           path: |
             libtorrent/build
-          key: libtorrent-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
+          key: libtorrent-v2-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
 
       - name: Restore godot-cpp cache
         uses: actions/cache/restore@v4
