@@ -227,6 +227,8 @@ jobs:
           #define HEADER_OPENSSLCONF_H
           #define OPENSSL_THREADS
           #define OPENSSL_NO_STATIC_ENGINE
+          #define OPENSSL_API_COMPAT 0x10100000L
+          typedef unsigned long BN_ULONG;
           #endif
           EOF
           # Verify MinGW sysroot and headers
