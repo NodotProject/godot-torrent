@@ -70,7 +70,8 @@ elif use_mingw or platform == 'windows':
     # For Windows cross-compilation, add MinGW-specific paths
     env.Append(CPPPATH=[
         '/usr/x86_64-w64-mingw32/include',  # MinGW system headers
-        '/usr/x86_64-w64-mingw32/include/boost'  # MinGW Boost headers
+        '/usr/x86_64-w64-mingw32/include/boost',  # MinGW Boost headers
+        '/usr/x86_64-w64-mingw32/include/openssl'  # MinGW OpenSSL headers
     ])
     # Ensure MinGW uses its own sysroot and headers
     env.Append(CCFLAGS=['--sysroot=/usr/x86_64-w64-mingw32'])

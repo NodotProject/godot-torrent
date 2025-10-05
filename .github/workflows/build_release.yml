@@ -211,15 +211,23 @@ jobs:
         if: matrix.platform == 'windows'
         run: |
           sudo apt-get update
-          sudo apt-get install -y mingw-w64 mingw-w64-tools mingw-w64-x86-64-dev mingw-w64-common wget
+          sudo apt-get install -y mingw-w64 mingw-w64-tools mingw-w64-x86-64-dev mingw-w64-common libssl-dev:amd64 wget
+          # Install MinGW-specific OpenSSL development headers
+          sudo apt-get install -y libssl-dev
           # Download and extract Boost headers for MinGW
           wget -nv https://sourceforge.net/projects/boost/files/boost/1.83.0/boost_1_83_0.tar.gz/download -O boost_1_83_0.tar.gz
           tar xzf boost_1_83_0.tar.gz
           sudo mkdir -p /usr/x86_64-w64-mingw32/include
           sudo cp -r boost_1_83_0/boost /usr/x86_64-w64-mingw32/include/
+          # Download and set up OpenSSL for MinGW
+          wget -nv https://www.openssl.org/source/openssl-1.1.1w.tar.gz
+          tar xzf openssl-1.1.1w.tar.gz
+          sudo cp -r openssl-1.1.1w/include/openssl /usr/x86_64-w64-mingw32/include/
           # Verify MinGW sysroot and headers
           echo "MinGW sysroot contents:"
           ls -la /usr/x86_64-w64-mingw32/
+          echo "OpenSSL headers available:"
+          ls -la /usr/x86_64-w64-mingw32/include/openssl/ | head -5
           # Set up proper cross-compilation environment
           export MINGW_PREFIX="/usr/x86_64-w64-mingw32"
           export CC="x86_64-w64-mingw32-gcc"
