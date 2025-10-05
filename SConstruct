@@ -90,8 +90,9 @@ if is_windows and not use_mingw:
     env.Append(CPPDEFINES=['TORRENT_USE_OPENSSL'])
 elif is_windows and use_mingw:
     # MinGW flags (similar to Linux but for Windows target)
-    # CRITICAL: Define OPENSSL_API_COMPAT as compiler flag BEFORE any headers are included
-    env.Append(CCFLAGS=['-fPIC', '-DOPENSSL_API_COMPAT=0x10100000L'])
+    # CRITICAL: Define OPENSSL_API_COMPAT for OpenSSL 3.x (Ubuntu 24.04 uses 3.0.x)
+    # Must be defined as compiler flag BEFORE any headers are included
+    env.Append(CCFLAGS=['-fPIC', '-DOPENSSL_API_COMPAT=0x30000000L'])
     env.Append(CXXFLAGS=['-std=c++17'])
     # Add Windows-specific defines for MinGW
     env.Append(CPPDEFINES=['WIN32', '_WIN32', 'WINDOWS_ENABLED', 'TORRENT_USE_OPENSSL'])

@@ -72,7 +72,7 @@ jobs:
         with:
           path: |
             libtorrent/build
-          key: libtorrent-v3-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
+          key: libtorrent-v4-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
 
       - name: Build libtorrent
         if: steps.cache-libtorrent.outputs.cache-hit != 'true'
@@ -222,12 +222,13 @@ jobs:
           # Copy system OpenSSL headers (they're compatible for header-only usage)
           sudo cp -r /usr/include/openssl /usr/x86_64-w64-mingw32/include/
           # Create opensslconf.h for Windows (basic compatibility header)
+          # Using 0x30000000L for OpenSSL 3.x compatibility (Ubuntu 24.04 uses OpenSSL 3.0.x)
           sudo tee /usr/x86_64-w64-mingw32/include/openssl/opensslconf.h > /dev/null <<'EOF'
           #ifndef HEADER_OPENSSLCONF_H
           #define HEADER_OPENSSLCONF_H
           #define OPENSSL_THREADS
           #define OPENSSL_NO_STATIC_ENGINE
-          #define OPENSSL_API_COMPAT 0x10100000L
+          #define OPENSSL_API_COMPAT 0x30000000L
           typedef unsigned long BN_ULONG;
           #endif
           EOF
@@ -246,7 +247,7 @@ jobs:
         with:
           path: |
             libtorrent/build
-          key: libtorrent-v3-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
+          key: libtorrent-v4-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
 
       - name: Debug libtorrent cache contents
         run: |
