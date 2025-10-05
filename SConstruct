@@ -93,7 +93,7 @@ elif is_windows and use_mingw:
     env.Append(CCFLAGS=['-fPIC'])
     env.Append(CXXFLAGS=['-std=c++17'])
     # Add Windows-specific defines for MinGW
-    env.Append(CPPDEFINES=['WIN32', '_WIN32', 'WINDOWS_ENABLED', 'TORRENT_USE_OPENSSL'])
+    env.Append(CPPDEFINES=['WIN32', '_WIN32', 'WINDOWS_ENABLED', 'TORRENT_USE_OPENSSL', ('OPENSSL_API_COMPAT', '0x10100000L')])
     # Match godot-cpp's MinGW linking configuration for compatibility
     env.Append(CCFLAGS=['-Wwrite-strings'])
     env.Append(LINKFLAGS=['-Wl,--no-undefined'])
