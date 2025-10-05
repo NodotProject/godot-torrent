@@ -90,10 +90,11 @@ if is_windows and not use_mingw:
     env.Append(CPPDEFINES=['TORRENT_USE_OPENSSL'])
 elif is_windows and use_mingw:
     # MinGW flags (similar to Linux but for Windows target)
-    env.Append(CCFLAGS=['-fPIC'])
+    # CRITICAL: Define OPENSSL_API_COMPAT as compiler flag BEFORE any headers are included
+    env.Append(CCFLAGS=['-fPIC', '-DOPENSSL_API_COMPAT=0x10100000L'])
     env.Append(CXXFLAGS=['-std=c++17'])
     # Add Windows-specific defines for MinGW
-    env.Append(CPPDEFINES=['WIN32', '_WIN32', 'WINDOWS_ENABLED', 'TORRENT_USE_OPENSSL', ('OPENSSL_API_COMPAT', '0x10100000L')])
+    env.Append(CPPDEFINES=['WIN32', '_WIN32', 'WINDOWS_ENABLED', 'TORRENT_USE_OPENSSL'])
     # Match godot-cpp's MinGW linking configuration for compatibility
     env.Append(CCFLAGS=['-Wwrite-strings'])
     env.Append(LINKFLAGS=['-Wl,--no-undefined'])
