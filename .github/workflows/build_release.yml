@@ -54,7 +54,12 @@ jobs:
         if: matrix.platform == 'windows'
         run: |
           sudo apt-get update
-          sudo apt-get install -y mingw-w64 cmake
+          sudo apt-get install -y mingw-w64 cmake wget unzip
+          # Download and extract Boost headers for MinGW
+          wget -q https://boostorg.jfrog.io/artifactory/main/release/1.83.0/source/boost_1_83_0.tar.gz
+          tar xzf boost_1_83_0.tar.gz
+          sudo mkdir -p /usr/x86_64-w64-mingw32/include
+          sudo cp -r boost_1_83_0/boost /usr/x86_64-w64-mingw32/include/
 
       - name: Install dependencies (macOS)
         if: matrix.platform == 'macos'
@@ -82,6 +87,9 @@ jobs:
           elif [ "${{ matrix.platform }}" == "windows" ]; then
             cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
               -DCMAKE_TOOLCHAIN_FILE=../../cmake/mingw-w64-x86_64.cmake \
+              -DBOOST_INCLUDEDIR=/usr/x86_64-w64-mingw32/include \
+              -DBoost_INCLUDE_DIR=/usr/x86_64-w64-mingw32/include \
+              -Dencryption=OFF \
               -Dstatic_runtime=ON -Dbuild_shared_libs=OFF -Dbuild_tests=OFF \
               -Dbuild_examples=OFF -Dbuild_tools=OFF
           elif [ "${{ matrix.platform }}" == "macos" ]; then
