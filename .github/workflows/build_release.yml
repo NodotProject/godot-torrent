@@ -100,7 +100,9 @@ jobs:
               -Dbuild_examples=OFF -Dbuild_tools=OFF \
               -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT_DIR" \
               -DOPENSSL_LIBRARIES="$OPENSSL_ROOT_DIR/lib" \
-              -DOPENSSL_INCLUDE_DIR="$OPENSSL_ROOT_DIR/include"
+              -DOPENSSL_INCLUDE_DIR="$OPENSSL_ROOT_DIR/include" \
+              -DOPENSSL_CRYPTO_LIBRARY="$OPENSSL_ROOT_DIR/lib/libcrypto.dylib" \
+              -DOPENSSL_SSL_LIBRARY="$OPENSSL_ROOT_DIR/lib/libssl.dylib"
           fi
           
           make -j$(nproc || sysctl -n hw.ncpu)
