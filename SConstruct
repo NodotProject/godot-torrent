@@ -181,6 +181,7 @@ src_files = [
     'src/torrent_error.cpp',
     'src/torrent_result.cpp',
     'src/torrent_logger.cpp',
+    'src/torrent_key_pair.cpp',
     'src/torrent_session.cpp',
     'src/torrent_handle.cpp',
     'src/torrent_info.cpp',

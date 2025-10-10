@@ -3,10 +3,13 @@
 #include "torrent_status.h"
 #include "torrent_error.h"
 #include "torrent_logger.h"
+#include "torrent_key_pair.h"
 
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <godot_cpp/classes/time.hpp>
+#include <godot_cpp/classes/dir_access.hpp>
+#include <godot_cpp/classes/file_access.hpp>
 
 #include <libtorrent/session.hpp>
 #include <libtorrent/settings_pack.hpp>
@@ -24,6 +27,11 @@
 #include <libtorrent/session_handle.hpp>
 #include <libtorrent/ip_filter.hpp>
 #include <libtorrent/address.hpp>
+#include <libtorrent/create_torrent.hpp>
+
+#include <chrono>
+#include <libtorrent/file_storage.hpp>
+#include <libtorrent/aux_/ed25519.hpp>
 
 #include <vector>
 #include <string>
@@ -77,6 +85,14 @@ void TorrentSession::_bind_methods() {
     ClassDB::bind_method(D_METHOD("add_magnet_uri_with_resume", "magnet_uri", "save_path", "resume_data"), &TorrentSession::add_magnet_uri_with_resume);
     ClassDB::bind_method(D_METHOD("remove_torrent", "handle", "delete_files"), &TorrentSession::remove_torrent, DEFVAL(false));
 
+    ClassDB::bind_method(D_METHOD("create_torrent_from_path", "path", "piece_size", "flags", "comment", "creator"), &TorrentSession::create_torrent_from_path, DEFVAL(0), DEFVAL(0), DEFVAL(""), DEFVAL(""));
+    ClassDB::bind_method(D_METHOD("dht_put_mutable_item", "keypair", "value", "salt"), &TorrentSession::dht_put_mutable_item, DEFVAL(""));
+    ClassDB::bind_method(D_METHOD("dht_get_mutable_item", "public_key", "salt"), &TorrentSession::dht_get_mutable_item, DEFVAL(""));
+    ClassDB::bind_method(D_METHOD("add_mutable_torrent", "keypair", "save_path", "initial_torrent_data"), &TorrentSession::add_mutable_torrent, DEFVAL(PackedByteArray()));
+    ClassDB::bind_method(D_METHOD("subscribe_mutable_torrent", "public_key", "save_path"), &TorrentSession::subscribe_mutable_torrent);
+    ClassDB::bind_method(D_METHOD("publish_mutable_torrent_update", "public_key", "new_torrent_data"), &TorrentSession::publish_mutable_torrent_update);
+    ClassDB::bind_method(D_METHOD("check_mutable_torrent_for_updates", "public_key"), &TorrentSession::check_mutable_torrent_for_updates);
+
     ClassDB::bind_method(D_METHOD("get_session_stats"), &TorrentSession::get_session_stats);
     ClassDB::bind_method(D_METHOD("get_alerts"), &TorrentSession::get_alerts);
     ClassDB::bind_method(D_METHOD("clear_alerts"), &TorrentSession::clear_alerts);
@@ -100,7 +116,8 @@ void TorrentSession::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_log_level", "level"), &TorrentSession::set_log_level);
 }
 
-TorrentSession::TorrentSession() : _session(nullptr) {
+TorrentSession::TorrentSession() : _session(nullptr), _update_check_interval_seconds(300) {
+    _last_update_check = std::chrono::steady_clock::now();
 }
 
 TorrentSession::~TorrentSession() {
@@ -714,6 +731,7 @@ Ref<TorrentHandle> TorrentSession::add_torrent_file(PackedByteArray torrent_data
         Dictionary handle_data;
         handle_data["libtorrent_ptr"] = (uint64_t)handle_copy;
         handle->_set_internal_handle(handle_data);
+        handle->_set_parent_session(_session);
 
         return handle;
     } catch (const std::exception& e) {
@@ -791,6 +809,7 @@ Ref<TorrentHandle> TorrentSession::add_torrent_file_with_resume(PackedByteArray 
         Dictionary handle_data;
         handle_data["libtorrent_ptr"] = (uint64_t)handle_copy;
         handle->_set_internal_handle(handle_data);
+        handle->_set_parent_session(_session);
 
         return handle;
     } catch (const std::exception& e) {
@@ -849,6 +868,7 @@ Ref<TorrentHandle> TorrentSession::add_magnet_uri(String magnet_uri, String save
         Dictionary handle_data;
         handle_data["libtorrent_ptr"] = (uint64_t)handle_copy;
         handle->_set_internal_handle(handle_data);
+        handle->_set_parent_session(_session);
 
         return handle;
     } catch (const std::exception& e) {
@@ -917,6 +937,7 @@ Ref<TorrentHandle> TorrentSession::add_magnet_uri_with_resume(String magnet_uri,
         Dictionary handle_data;
         handle_data["libtorrent_ptr"] = (uint64_t)handle_copy;
         handle->_set_internal_handle(handle_data);
+        handle->_set_parent_session(_session);
 
         return handle;
     } catch (const std::exception& e) {
@@ -985,6 +1006,9 @@ Array TorrentSession::get_alerts() {
     Array result;
 
     if (!_session) return result;
+
+    // Check for mutable torrent updates periodically
+    check_mutable_torrent_updates();
 
     try {
         std::vector<libtorrent::alert*> alerts;
@@ -1101,6 +1125,94 @@ Array TorrentSession::get_alerts() {
                     alert_dict["tracker_url"] = String(announce->tracker_url());
                     alert_dict["event"] = static_cast<int>(announce->event);
                     alert_dict["info_hash"] = String(libtorrent::aux::to_hex(announce->handle.info_hash()).c_str());
+                }
+
+                // Parse dht_mutable_item_alert (BEP 46 support)
+                if (auto* dht_alert = libtorrent::alert_cast<libtorrent::dht_mutable_item_alert>(alert)) {
+                    // Convert public key to hex string
+                    PackedByteArray pk_array;
+                    pk_array.resize(32);
+                    std::memcpy(pk_array.ptrw(), dht_alert->key.data(), 32);
+                    alert_dict["public_key"] = pk_array.hex_encode();
+                    alert_dict["public_key_bytes"] = pk_array;
+
+                    // Sequence number
+                    alert_dict["sequence"] = static_cast<int64_t>(dht_alert->seq);
+
+                    // Convert entry to Dictionary (simplified - handles common types)
+                    Dictionary value_dict;
+                    if (dht_alert->item.type() == libtorrent::entry::dictionary_t) {
+                        for (auto const& kv : dht_alert->item.dict()) {
+                            String key_str(kv.first.c_str());
+                            if (kv.second.type() == libtorrent::entry::string_t) {
+                                value_dict[key_str] = String(kv.second.string().c_str());
+                            } else if (kv.second.type() == libtorrent::entry::int_t) {
+                                value_dict[key_str] = static_cast<int64_t>(kv.second.integer());
+                            }
+                        }
+                    }
+                    alert_dict["value"] = value_dict;
+
+                    // Salt (if any)
+                    alert_dict["salt"] = String(dht_alert->salt.c_str());
+
+                    // Authoritative flag
+                    alert_dict["authoritative"] = dht_alert->authoritative;
+
+                    // Check if this is for a tracked mutable torrent and compare sequence numbers
+                    std::string pk_str(reinterpret_cast<const char*>(pk_array.ptr()), 32);
+                    auto it = _mutable_torrents.find(pk_str);
+
+                    if (it != _mutable_torrents.end()) {
+                        auto& info = it->second;
+
+                        // Check for update (new sequence number)
+                        if (dht_alert->seq > info.sequence_number) {
+                            // Extract new info-hash from value
+                            String new_info_hash = "";
+                            if (value_dict.has("ih")) {
+                                new_info_hash = value_dict["ih"];
+                            }
+
+                            // Create custom update alert
+                            Dictionary update_alert;
+                            update_alert["type"] = "mutable_torrent_update_alert";
+                            update_alert["what"] = "torrent_update";
+                            update_alert["message"] = "New version of mutable torrent available";
+                            update_alert["public_key"] = pk_array.hex_encode();
+                            update_alert["public_key_bytes"] = pk_array;
+                            update_alert["old_sequence"] = static_cast<int64_t>(info.sequence_number);
+                            update_alert["new_sequence"] = static_cast<int64_t>(dht_alert->seq);
+                            update_alert["new_info_hash"] = new_info_hash;
+
+                            // Update stored sequence
+                            info.sequence_number = dht_alert->seq;
+
+                            // Add the update alert to results
+                            result.append(update_alert);
+
+                            if (_logger.is_valid()) {
+                                _logger->log_info("Mutable torrent update detected: seq " +
+                                    String::num(info.sequence_number - 1) + " -> " + String::num(info.sequence_number), "SESSION");
+                            }
+                        }
+                    }
+                }
+
+                // Parse dht_put_alert (confirmation of DHT put operation)
+                if (auto* dht_put = libtorrent::alert_cast<libtorrent::dht_put_alert>(alert)) {
+                    // Convert public key to hex string
+                    PackedByteArray pk_array;
+                    pk_array.resize(32);
+                    std::memcpy(pk_array.ptrw(), dht_put->public_key.data(), 32);
+                    alert_dict["public_key"] = pk_array.hex_encode();
+                    alert_dict["public_key_bytes"] = pk_array;
+
+                    // Sequence number
+                    alert_dict["sequence"] = static_cast<int64_t>(dht_put->seq);
+
+                    // Salt (if any)
+                    alert_dict["salt"] = String(dht_put->salt.c_str());
                 }
 
                 result.append(alert_dict);
@@ -1350,5 +1462,431 @@ void TorrentSession::set_log_level(int level) {
         _logger->set_log_level(static_cast<TorrentLogger::LogLevel>(level));
     } else {
         UtilityFunctions::push_warning("Cannot set log level: no logger attached");
+    }
+}
+// Mutable Torrent Implementations for TorrentSession
+// This file contains the implementation of BEP 46 mutable torrent support
+
+// Torrent Creation
+PackedByteArray TorrentSession::create_torrent_from_path(String path, int piece_size, int flags, String comment, String creator) {
+    if (!_session) {
+        report_error("create_torrent_from_path", "Session not running");
+        return PackedByteArray();
+    }
+
+    try {
+        // Convert Godot path to std::string
+        std::string path_str = path.utf8().get_data();
+
+        // Check if path exists
+        Ref<DirAccess> dir = DirAccess::open(path);
+        Ref<FileAccess> file = FileAccess::open(path, FileAccess::READ);
+
+        if (!dir.is_valid() && !file.is_valid()) {
+            report_error("create_torrent_from_path", "Path does not exist: " + path);
+            return PackedByteArray();
+        }
+
+        // Create file_storage
+        libtorrent::file_storage fs;
+
+        if (dir.is_valid()) {
+            // Directory mode - add all files recursively
+            libtorrent::add_files(fs, path_str);
+        } else {
+            // Single file mode
+            int64_t file_size = file->get_length();
+            file.unref();
+            fs.add_file(path_str, file_size);
+        }
+
+        // Create the torrent with piece size (0 = automatic)
+        libtorrent::create_torrent ct(fs, piece_size > 0 ? piece_size : 0, flags);
+
+        // Set metadata
+        if (!comment.is_empty()) {
+            ct.set_comment(comment.utf8().get_data());
+        }
+        if (!creator.is_empty()) {
+            ct.set_creator(creator.utf8().get_data());
+        } else {
+            ct.set_creator("godot-torrent");
+        }
+
+        // Generate piece hashes
+        libtorrent::set_piece_hashes(ct, path.get_base_dir().utf8().get_data());
+
+        // Generate the torrent file
+        libtorrent::entry e = ct.generate();
+
+        // Bencode to buffer
+        std::vector<char> buffer;
+        libtorrent::bencode(std::back_inserter(buffer), e);
+
+        // Convert to PackedByteArray
+        PackedByteArray result;
+        result.resize(buffer.size());
+        std::memcpy(result.ptrw(), buffer.data(), buffer.size());
+
+        if (_logger.is_valid()) {
+            _logger->log_info("Created torrent from: " + path + " (" + String::num(buffer.size()) + " bytes)", "SESSION");
+        }
+
+        return result;
+
+    } catch (const std::exception& e) {
+        report_error("create_torrent_from_path", String("Exception: ") + e.what());
+        return PackedByteArray();
+    }
+}
+
+// DHT Mutable Item Operations
+void TorrentSession::dht_put_mutable_item(Ref<TorrentKeyPair> keypair, Dictionary value, String salt) {
+    if (!_session) {
+        report_error("dht_put_mutable_item", "Session not running");
+        return;
+    }
+
+    if (!keypair.is_valid() || !keypair->can_sign()) {
+        report_error("dht_put_mutable_item", "Invalid keypair or cannot sign");
+        return;
+    }
+
+    try {
+        // Convert Dictionary to libtorrent::entry
+        libtorrent::entry item;
+        for (int i = 0; i < value.size(); i++) {
+            auto keys = value.keys();
+            Variant key = keys[i];
+            Variant val = value[key];
+
+            String key_str = key;
+            if (val.get_type() == Variant::STRING) {
+                item[key_str.utf8().get_data()] = String(val).utf8().get_data();
+            } else if (val.get_type() == Variant::INT) {
+                item[key_str.utf8().get_data()] = (int64_t)val;
+            }
+        }
+
+        // Get the public key
+        auto public_key_array = keypair->get_lt_public_key();
+        std::array<char, 32> public_key;
+        std::memcpy(public_key.data(), public_key_array.data(), 32);
+
+        // Get current sequence number for this keypair
+        std::string pk_str(public_key.begin(), public_key.end());
+        int64_t seq = 1;
+        if (_mutable_torrents.find(pk_str) != _mutable_torrents.end()) {
+            seq = _mutable_torrents[pk_str].sequence_number + 1;
+        }
+
+        // Create the put callback
+        auto cb = [keypair, item, seq](libtorrent::entry& e, std::array<char, 64>& sig,
+                                        std::int64_t& sequence, std::string const& s) mutable {
+            e = item;
+            sequence = seq;
+
+            // Sign the data
+            std::vector<char> buf;
+            libtorrent::bencode(std::back_inserter(buf), e);
+
+            // Add sequence and salt to signature data
+            buf.insert(buf.end(), reinterpret_cast<char*>(&sequence), reinterpret_cast<char*>(&sequence) + 8);
+            if (!s.empty()) {
+                buf.insert(buf.end(), s.begin(), s.end());
+            }
+
+            PackedByteArray data;
+            data.resize(buf.size());
+            std::memcpy(data.ptrw(), buf.data(), buf.size());
+
+            PackedByteArray signature = keypair->sign(data);
+            std::memcpy(sig.data(), signature.ptr(), 64);
+        };
+
+        // Put the mutable item
+        _session->dht_put_item(public_key, cb, salt.utf8().get_data());
+
+        // Update tracking
+        MutableTorrentInfo info;
+        info.keypair = keypair;
+        info.public_key = keypair->get_public_key();
+        info.sequence_number = seq;
+        info.is_publisher = true;
+        info.auto_update_enabled = false;
+        info.save_path = "";
+        _mutable_torrents[pk_str] = info;
+
+        if (_logger.is_valid()) {
+            _logger->log_info("DHT put mutable item with sequence: " + String::num(seq), "SESSION");
+        }
+
+    } catch (const std::exception& e) {
+        report_error("dht_put_mutable_item", String("Exception: ") + e.what());
+    }
+}
+
+void TorrentSession::dht_get_mutable_item(PackedByteArray public_key, String salt) {
+    if (!_session) {
+        report_error("dht_get_mutable_item", "Session not running");
+        return;
+    }
+
+    if (public_key.size() != 32) {
+        report_error("dht_get_mutable_item", "Public key must be 32 bytes");
+        return;
+    }
+
+    try {
+        // Convert to libtorrent public key
+        std::array<char, 32> pk;
+        std::memcpy(pk.data(), public_key.ptr(), 32);
+
+        // Get the mutable item
+        _session->dht_get_item(pk, salt.utf8().get_data());
+
+        if (_logger.is_valid()) {
+            _logger->log_info("DHT get mutable item requested", "SESSION");
+        }
+
+        // Result will arrive via dht_mutable_item_alert in get_alerts()
+
+    } catch (const std::exception& e) {
+        report_error("dht_get_mutable_item", String("Exception: ") + e.what());
+    }
+}
+
+// Mutable Torrent Operations
+Ref<TorrentHandle> TorrentSession::add_mutable_torrent(Ref<TorrentKeyPair> keypair, String save_path, PackedByteArray initial_torrent_data) {
+    if (!_session) {
+        report_error("add_mutable_torrent", "Session not running");
+        return Ref<TorrentHandle>();
+    }
+
+    if (!keypair.is_valid() || !keypair->can_sign()) {
+        report_error("add_mutable_torrent", "Invalid keypair or cannot sign");
+        return Ref<TorrentHandle>();
+    }
+
+    if (save_path.is_empty()) {
+        report_error("add_mutable_torrent", "Save path cannot be empty");
+        return Ref<TorrentHandle>();
+    }
+
+    try {
+        // If initial torrent data provided, add it first
+        Ref<TorrentHandle> handle;
+        if (initial_torrent_data.size() > 0) {
+            handle = add_torrent_file(initial_torrent_data, save_path);
+            if (!handle.is_valid()) {
+                return Ref<TorrentHandle>();
+            }
+        }
+
+        // Store mutable torrent info
+        auto public_key_array = keypair->get_lt_public_key();
+        std::string pk_str(public_key_array.begin(), public_key_array.end());
+
+        MutableTorrentInfo info;
+        info.keypair = keypair;
+        info.public_key = keypair->get_public_key();
+        info.sequence_number = 1;
+        info.is_publisher = true;
+        info.auto_update_enabled = false;
+        info.save_path = save_path;
+        _mutable_torrents[pk_str] = info;
+
+        if (_logger.is_valid()) {
+            _logger->log_info("Added mutable torrent (publisher mode)", "SESSION");
+        }
+
+        return handle;
+
+    } catch (const std::exception& e) {
+        report_error("add_mutable_torrent", String("Exception: ") + e.what());
+        return Ref<TorrentHandle>();
+    }
+}
+
+Ref<TorrentHandle> TorrentSession::subscribe_mutable_torrent(PackedByteArray public_key, String save_path) {
+    if (!_session) {
+        report_error("subscribe_mutable_torrent", "Session not running");
+        return Ref<TorrentHandle>();
+    }
+
+    if (public_key.size() != 32) {
+        report_error("subscribe_mutable_torrent", "Public key must be 32 bytes");
+        return Ref<TorrentHandle>();
+    }
+
+    if (save_path.is_empty()) {
+        report_error("subscribe_mutable_torrent", "Save path cannot be empty");
+        return Ref<TorrentHandle>();
+    }
+
+    try {
+        // Store subscription info
+        std::string pk_str(reinterpret_cast<const char*>(public_key.ptr()), 32);
+
+        MutableTorrentInfo info;
+        info.keypair = Ref<TorrentKeyPair>();  // No keypair for subscribers
+        info.public_key = public_key;
+        info.sequence_number = 0;
+        info.is_publisher = false;
+        info.auto_update_enabled = true;  // Enable by default for subscribers
+        info.save_path = save_path;
+        _mutable_torrents[pk_str] = info;
+
+        // Query DHT for current version
+        dht_get_mutable_item(public_key, "");
+
+        if (_logger.is_valid()) {
+            _logger->log_info("Subscribed to mutable torrent (consumer mode)", "SESSION");
+        }
+
+        // The actual torrent will be added when we receive the DHT response
+        // Return null for now - user should listen for alerts
+        return Ref<TorrentHandle>();
+
+    } catch (const std::exception& e) {
+        report_error("subscribe_mutable_torrent", String("Exception: ") + e.what());
+        return Ref<TorrentHandle>();
+    }
+}
+
+bool TorrentSession::publish_mutable_torrent_update(PackedByteArray public_key, PackedByteArray new_torrent_data) {
+    if (!_session) {
+        report_error("publish_mutable_torrent_update", "Session not running");
+        return false;
+    }
+
+    if (public_key.size() != 32) {
+        report_error("publish_mutable_torrent_update", "Public key must be 32 bytes");
+        return false;
+    }
+
+    if (new_torrent_data.size() == 0) {
+        report_error("publish_mutable_torrent_update", "Empty torrent data");
+        return false;
+    }
+
+    try {
+        // Find the mutable torrent info by public key
+        std::string pk_str(reinterpret_cast<const char*>(public_key.ptr()), 32);
+        auto it = _mutable_torrents.find(pk_str);
+
+        if (it == _mutable_torrents.end()) {
+            report_error("publish_mutable_torrent_update", "Mutable torrent not found. Use add_mutable_torrent first.");
+            return false;
+        }
+
+        MutableTorrentInfo& info = it->second;
+
+        if (!info.is_publisher) {
+            report_error("publish_mutable_torrent_update", "Not the publisher of this mutable torrent");
+            return false;
+        }
+
+        if (!info.keypair.is_valid() || !info.keypair->can_sign()) {
+            report_error("publish_mutable_torrent_update", "Invalid keypair");
+            return false;
+        }
+
+        // Parse new torrent to extract info-hash
+        const char* data_ptr = reinterpret_cast<const char*>(new_torrent_data.ptr());
+        libtorrent::error_code ec;
+        auto torrent_info = std::make_shared<libtorrent::torrent_info>(
+            data_ptr,
+            new_torrent_data.size(),
+            ec
+        );
+
+        if (ec) {
+            report_error("publish_mutable_torrent_update", String("Failed to parse torrent: ") + ec.message().c_str());
+            return false;
+        }
+
+        // Extract info-hash
+        std::string info_hash_hex = libtorrent::aux::to_hex(torrent_info->info_hashes().v1);
+
+        // Create DHT value with new info-hash
+        Dictionary value;
+        value["ih"] = String(info_hash_hex.c_str());
+        value["v"] = 1; // BEP 46 version field
+
+        // Publish the update using dht_put_mutable_item
+        dht_put_mutable_item(info.keypair, value, "");
+
+        // Update sequence number in tracking
+        info.sequence_number++;
+
+        if (_logger.is_valid()) {
+            _logger->log_info("Published mutable torrent update, sequence: " + String::num(info.sequence_number), "SESSION");
+        }
+
+        return true;
+
+    } catch (const std::exception& e) {
+        report_error("publish_mutable_torrent_update", String("Exception: ") + e.what());
+        return false;
+    }
+}
+
+void TorrentSession::check_mutable_torrent_for_updates(PackedByteArray public_key) {
+    if (!_session) {
+        report_error("check_mutable_torrent_for_updates", "Session not running");
+        return;
+    }
+
+    if (public_key.size() != 32) {
+        report_error("check_mutable_torrent_for_updates", "Public key must be 32 bytes");
+        return;
+    }
+
+    // Simply query the DHT for the current value
+    dht_get_mutable_item(public_key, "");
+
+    if (_logger.is_valid()) {
+        _logger->log_info("Querying DHT for mutable torrent updates", "SESSION");
+    }
+}
+
+// Helper methods
+Dictionary TorrentSession::entry_to_dictionary(const void* entry_ptr) {
+    Dictionary dict;
+    // This is a simplified conversion - full implementation would handle all entry types
+    return dict;
+}
+
+void* TorrentSession::dictionary_to_entry(Dictionary dict) {
+    // This is a placeholder - full implementation would convert Dictionary to libtorrent::entry
+    return nullptr;
+}
+
+void TorrentSession::check_mutable_torrent_updates() {
+    if (!_session) {
+        return;
+    }
+
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+        now - _last_update_check).count();
+
+    if (elapsed < _update_check_interval_seconds) {
+        return;
+    }
+
+    // Check all mutable torrents with auto_update enabled
+    for (auto& [pk_str, info] : _mutable_torrents) {
+        if (!info.is_publisher && info.auto_update_enabled) {
+            // Query DHT for updates
+            dht_get_mutable_item(info.public_key, "");
+        }
+    }
+
+    _last_update_check = now;
+
+    if (_logger.is_valid() && !_mutable_torrents.empty()) {
+        _logger->log_info("Checked for mutable torrent updates", "SESSION");
     }
 }

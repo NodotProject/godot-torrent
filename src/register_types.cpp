@@ -14,6 +14,7 @@
 #include "torrent_error.h"
 #include "torrent_result.h"
 #include "torrent_logger.h"
+#include "torrent_key_pair.h"
 
 using namespace godot;
 
@@ -34,6 +35,9 @@ void initialize_godot_torrent_module(ModuleInitializationLevel p_level) {
     ClassDB::register_class<TorrentStatus>();
     ClassDB::register_class<PeerInfo>();
     ClassDB::register_class<AlertManager>();
+
+    // Register cryptographic classes
+    ClassDB::register_class<godot::TorrentKeyPair>();
 }
 
 void uninitialize_godot_torrent_module(ModuleInitializationLevel p_level) {

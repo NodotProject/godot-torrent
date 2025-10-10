@@ -92,9 +92,19 @@ public:
     void save_resume_data();
     PackedByteArray get_resume_data();
 
+    // Mutable torrent operations (BEP 46)
+    bool is_mutable() const;
+    PackedByteArray get_public_key() const;
+    int64_t get_sequence_number() const;
+    bool publish_update(PackedByteArray new_torrent_data);
+    void check_for_updates();
+    void set_auto_update(bool enabled);
+    bool is_auto_update_enabled() const;
+
     // Internal methods for libtorrent integration
     void _set_internal_handle(const Variant& handle);
     Variant _get_internal_handle() const;
+    void _set_parent_session(void* session_ptr);
 
 private:
     // Handle storage (using void* for stub compatibility)
@@ -113,6 +123,15 @@ private:
     PackedByteArray _resume_data;
     bool _resume_data_ready;
     mutable std::mutex _resume_data_mutex;
+
+    // Mutable torrent tracking
+    bool _is_mutable;
+    PackedByteArray _public_key;
+    int64_t _sequence_number;
+    bool _auto_update_enabled;
+
+    // Parent session reference (weak pointer, not owned)
+    void* _parent_session;
 
     // Thread safety
     mutable std::mutex _handle_mutex;

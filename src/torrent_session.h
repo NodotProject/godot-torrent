@@ -6,11 +6,16 @@
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <memory>
+#include <map>
 
 using namespace godot;
 
 class TorrentHandle;
 class TorrentLogger;
+
+// Forward declaration not sufficient since we use Ref<TorrentKeyPair> in member struct
+// Need complete type definition
+#include "torrent_key_pair.h"
 
 namespace libtorrent {
     class session;
@@ -87,6 +92,19 @@ public:
     Ref<TorrentHandle> add_magnet_uri_with_resume(String magnet_uri, String save_path, PackedByteArray resume_data);
     bool remove_torrent(Ref<TorrentHandle> handle, bool delete_files = false);
 
+    // Torrent creation
+    PackedByteArray create_torrent_from_path(String path, int piece_size = 0, int flags = 0, String comment = "", String creator = "");
+
+    // DHT mutable item operations (for mutable torrents - BEP 46)
+    void dht_put_mutable_item(Ref<TorrentKeyPair> keypair, Dictionary value, String salt = "");
+    void dht_get_mutable_item(PackedByteArray public_key, String salt = "");
+
+    // Mutable torrent operations
+    Ref<TorrentHandle> add_mutable_torrent(Ref<TorrentKeyPair> keypair, String save_path, PackedByteArray initial_torrent_data = PackedByteArray());
+    Ref<TorrentHandle> subscribe_mutable_torrent(PackedByteArray public_key, String save_path);
+    bool publish_mutable_torrent_update(PackedByteArray public_key, PackedByteArray new_torrent_data);
+    void check_mutable_torrent_for_updates(PackedByteArray public_key);
+
     // Statistics and monitoring
     Dictionary get_session_stats();
 
@@ -121,8 +139,28 @@ private:
     // Logger
     Ref<TorrentLogger> _logger;
 
+    // Mutable torrent tracking
+    struct MutableTorrentInfo {
+        Ref<TorrentKeyPair> keypair;
+        PackedByteArray public_key;
+        int64_t sequence_number;
+        bool is_publisher;
+        bool auto_update_enabled;
+        String save_path;
+    };
+    std::map<std::string, MutableTorrentInfo> _mutable_torrents;
+
+    // Update checking
+    std::chrono::steady_clock::time_point _last_update_check;
+    int _update_check_interval_seconds;
+
     // Helper to convert Dictionary to libtorrent settings_pack
     void apply_dictionary_settings(Dictionary settings);
+
+    // Helpers for mutable torrents
+    Dictionary entry_to_dictionary(const void* entry_ptr);
+    void* dictionary_to_entry(Dictionary dict);
+    void check_mutable_torrent_updates();
 
     // Error handling helpers
     void report_error(const String& operation, const String& message);

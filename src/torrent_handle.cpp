@@ -2,6 +2,7 @@
 #include "torrent_info.h"
 #include "torrent_status.h"
 #include "peer_info.h"
+#include "torrent_session.h"
 
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
@@ -65,6 +66,15 @@ void TorrentHandle::_bind_methods() {
     ClassDB::bind_method(D_METHOD("save_resume_data"), &TorrentHandle::save_resume_data);
     ClassDB::bind_method(D_METHOD("get_resume_data"), &TorrentHandle::get_resume_data);
 
+    // Mutable torrent methods
+    ClassDB::bind_method(D_METHOD("is_mutable"), &TorrentHandle::is_mutable);
+    ClassDB::bind_method(D_METHOD("get_public_key"), &TorrentHandle::get_public_key);
+    ClassDB::bind_method(D_METHOD("get_sequence_number"), &TorrentHandle::get_sequence_number);
+    ClassDB::bind_method(D_METHOD("publish_update", "new_torrent_data"), &TorrentHandle::publish_update);
+    ClassDB::bind_method(D_METHOD("check_for_updates"), &TorrentHandle::check_for_updates);
+    ClassDB::bind_method(D_METHOD("set_auto_update", "enabled"), &TorrentHandle::set_auto_update);
+    ClassDB::bind_method(D_METHOD("is_auto_update_enabled"), &TorrentHandle::is_auto_update_enabled);
+
     // Internal methods for libtorrent integration
     ClassDB::bind_method(D_METHOD("_set_internal_handle", "handle"), &TorrentHandle::_set_internal_handle);
     ClassDB::bind_method(D_METHOD("_get_internal_handle"), &TorrentHandle::_get_internal_handle);
@@ -77,9 +87,13 @@ TorrentHandle::TorrentHandle() {
     _stub_name = "Default Torrent";
     _stub_info_hash = "0123456789abcdef0123456789abcdef01234567";
     _resume_data_ready = false;
+    _is_mutable = false;
+    _sequence_number = 0;
+    _auto_update_enabled = false;
+    _parent_session = nullptr;
 
     detect_build_mode();
-    
+
     if (_is_stub_mode) {
         log_handle_operation("TorrentHandle initialized in STUB mode");
     } else {
@@ -1283,4 +1297,130 @@ Array TorrentHandle::get_http_seeds() const {
     }
 
     return seeds;
+}
+
+// Mutable Torrent Methods
+
+bool TorrentHandle::is_mutable() const {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+    return _is_mutable;
+}
+
+PackedByteArray TorrentHandle::get_public_key() const {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+    return _public_key;
+}
+
+int64_t TorrentHandle::get_sequence_number() const {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+    return _sequence_number;
+}
+
+bool TorrentHandle::publish_update(PackedByteArray new_torrent_data) {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+
+    if (!_is_mutable) {
+        report_error("publish_update", "This handle is not a mutable torrent");
+        return false;
+    }
+
+    if (!validate_handle()) {
+        report_error("publish_update", "Invalid handle");
+        return false;
+    }
+
+    if (!_parent_session) {
+        report_error("publish_update", "No parent session available");
+        return false;
+    }
+
+    if (new_torrent_data.size() == 0) {
+        report_error("publish_update", "Empty torrent data");
+        return false;
+    }
+
+    if (_public_key.size() != 32) {
+        report_error("publish_update", "Invalid public key");
+        return false;
+    }
+
+#ifndef TORRENT_STUB_MODE
+    try {
+        // Cast parent session pointer and call the update method
+        libtorrent::session* session = static_cast<libtorrent::session*>(_parent_session);
+        TorrentSession* torrent_session = reinterpret_cast<TorrentSession*>(_parent_session);
+
+        // Call the session method to publish the update
+        bool success = torrent_session->publish_mutable_torrent_update(_public_key, new_torrent_data);
+
+        if (success) {
+            _sequence_number++;
+            log_handle_operation("Published mutable torrent update");
+        }
+
+        return success;
+    } catch (const std::exception& e) {
+        report_error("publish_update", String("Exception: ") + e.what());
+        return false;
+    }
+#else
+    report_error("publish_update", "Not available in stub mode");
+    return false;
+#endif
+}
+
+void TorrentHandle::check_for_updates() {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+
+    if (!_is_mutable) {
+        report_error("check_for_updates", "This handle is not a mutable torrent");
+        return;
+    }
+
+    if (!validate_handle()) {
+        report_error("check_for_updates", "Invalid handle");
+        return;
+    }
+
+    if (!_parent_session) {
+        report_error("check_for_updates", "No parent session available");
+        return;
+    }
+
+    if (_public_key.size() != 32) {
+        report_error("check_for_updates", "Invalid public key");
+        return;
+    }
+
+#ifndef TORRENT_STUB_MODE
+    try {
+        // Cast parent session pointer to TorrentSession
+        TorrentSession* torrent_session = static_cast<TorrentSession*>(_parent_session);
+
+        // Call the session method to check for updates
+        torrent_session->check_mutable_torrent_for_updates(_public_key);
+
+        log_handle_operation("Checking for mutable torrent updates");
+    } catch (const std::exception& e) {
+        report_error("check_for_updates", String("Exception: ") + e.what());
+    }
+#else
+    report_error("check_for_updates", "Not available in stub mode");
+#endif
+}
+
+void TorrentHandle::set_auto_update(bool enabled) {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+    _auto_update_enabled = enabled;
+    log_handle_operation(String("Auto-update ") + (enabled ? "enabled" : "disabled"));
+}
+
+bool TorrentHandle::is_auto_update_enabled() const {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+    return _auto_update_enabled;
+}
+
+void TorrentHandle::_set_parent_session(void* session_ptr) {
+    std::lock_guard<std::mutex> lock(_handle_mutex);
+    _parent_session = session_ptr;
 }
