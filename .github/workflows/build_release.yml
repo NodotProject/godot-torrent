@@ -72,7 +72,7 @@ jobs:
         with:
           path: |
             libtorrent/build
-          key: libtorrent-v5-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
+          key: libtorrent-v6-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
 
       - name: Build libtorrent
         if: steps.cache-libtorrent.outputs.cache-hit != 'true'
@@ -91,8 +91,11 @@ jobs:
               -DBoost_INCLUDE_DIR=/usr/x86_64-w64-mingw32/include \
               -Dencryption=OFF \
               -DTORRENT_USE_OPENSSL=OFF \
-              -Dstatic_runtime=ON -Dbuild_shared_libs=OFF -Dbuild_tests=OFF \
-              -Dbuild_examples=OFF -Dbuild_tools=OFF
+              -DBUILD_SHARED_LIBS=OFF \
+              -Dstatic_runtime=ON \
+              -Dbuild_tests=OFF \
+              -Dbuild_examples=OFF \
+              -Dbuild_tools=OFF
           elif [ "${{ matrix.platform }}" == "macos" ]; then
             OPENSSL_ROOT=$(brew --prefix openssl@3)
             cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
