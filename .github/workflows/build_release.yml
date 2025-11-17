@@ -79,7 +79,7 @@ jobs:
         run: |
           cd libtorrent
           mkdir -p build && cd build
-          
+
           if [ "${{ matrix.platform }}" == "linux" ]; then
             cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
               -Dstatic_runtime=ON -Dbuild_shared_libs=OFF -Dbuild_tests=OFF \
@@ -103,8 +103,15 @@ jobs:
               -Dstatic_runtime=ON -Dbuild_shared_libs=OFF -Dbuild_tests=OFF \
               -Dbuild_examples=OFF -Dbuild_tools=OFF
           fi
-          
+
           make -j$(nproc || sysctl -n hw.ncpu)
+
+      - name: Upload libtorrent artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libtorrent-${{ matrix.platform }}-${{ matrix.arch }}
+          path: libtorrent/build/
+          retention-days: 1
 
   build-addon:
     name: Build addon for ${{ matrix.os-name }}
@@ -175,14 +182,13 @@ jobs:
           export CC="x86_64-w64-mingw32-gcc"
           export CXX="x86_64-w64-mingw32-g++"
 
-      - name: Restore libtorrent cache
-        uses: actions/cache/restore@v4
+      - name: Download libtorrent artifact
+        uses: actions/download-artifact@v4
         with:
-          path: |
-            libtorrent/build
-          key: libtorrent-v5-${{ matrix.platform }}-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
+          name: libtorrent-${{ matrix.platform }}-${{ matrix.arch }}
+          path: libtorrent/build/
 
-      - name: Debug libtorrent cache contents
+      - name: Debug libtorrent artifact contents
         run: |
           echo "=== Checking libtorrent cache contents ==="
           ls -la libtorrent/build/ || echo "libtorrent/build directory does not exist"
