@@ -106,6 +106,19 @@ jobs:
 
           make -j$(nproc || sysctl -n hw.ncpu)
 
+      - name: Verify libtorrent build
+        run: |
+          echo "=== Verifying libtorrent build ==="
+          ls -lah libtorrent/build/ || echo "Build directory not found"
+          if [ -f libtorrent/build/libtorrent-rasterbar.a ]; then
+            echo "✓ Found libtorrent-rasterbar.a"
+            file libtorrent/build/libtorrent-rasterbar.a
+          else
+            echo "✗ libtorrent-rasterbar.a not found"
+            echo "Available files:"
+            find libtorrent/build -type f -name "*.a" || echo "No .a files found"
+          fi
+
       - name: Upload libtorrent artifact
         uses: actions/upload-artifact@v4
         with:
@@ -187,6 +200,20 @@ jobs:
         with:
           name: libtorrent-${{ matrix.platform }}-${{ matrix.arch }}
           path: libtorrent/build/
+
+      - name: Verify downloaded artifact
+        run: |
+          echo "=== Verifying downloaded libtorrent artifact ==="
+          ls -lah libtorrent/build/ || echo "Build directory not found after download"
+          if [ -f libtorrent/build/libtorrent-rasterbar.a ]; then
+            echo "✓ Found libtorrent-rasterbar.a"
+            file libtorrent/build/libtorrent-rasterbar.a
+            ls -lh libtorrent/build/libtorrent-rasterbar.a
+          else
+            echo "✗ libtorrent-rasterbar.a not found after download"
+            echo "Directory contents:"
+            find libtorrent -type f || echo "No files found in libtorrent/"
+          fi
 
       - name: Debug libtorrent artifact contents
         run: |
