@@ -148,7 +148,8 @@ else:
 
 if is_windows:
     # Windows libraries - removed SSL libraries to avoid MinGW linking issues
-    env.Append(LIBS=['ws2_32', 'wsock32', 'iphlpapi', 'crypt32'])
+    # Added pthread (winpthreads) for godot-cpp and bcrypt for libtorrent
+    env.Append(LIBS=['ws2_32', 'wsock32', 'iphlpapi', 'crypt32', 'pthread', 'bcrypt'])
 elif platform == 'linux':
     env.Append(LIBS=['pthread', 'ssl', 'crypto', 'dl'])
 elif platform == 'macos':
