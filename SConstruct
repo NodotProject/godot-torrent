@@ -119,13 +119,8 @@ godot_cpp_lib = f"{lib_prefix}godot-cpp.{platform}.{target}.{arch}{lib_ext}"
 env.Append(LIBS=[File(os.path.join('godot-cpp', 'bin', godot_cpp_lib))])
 
 # Libtorrent library linking - requires real libtorrent
-# Different library file names for different platforms
-if platform == 'windows' and use_mingw:
-    # MinGW cross-compilation produces .dll.a import library
-    libtorrent_lib_path = os.path.join('libtorrent', 'build', 'libtorrent-rasterbar.dll.a')
-else:
-    # Linux/macOS use static .a library
-    libtorrent_lib_path = os.path.join('libtorrent', 'build', 'libtorrent-rasterbar.a')
+# Use static library for all platforms to avoid runtime DLL dependencies
+libtorrent_lib_path = os.path.join('libtorrent', 'build', 'libtorrent-rasterbar.a')
 
 if os.path.exists(libtorrent_lib_path):
     env.Append(LIBS=[File(libtorrent_lib_path)])
