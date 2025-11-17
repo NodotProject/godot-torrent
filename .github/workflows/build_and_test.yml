@@ -13,6 +13,12 @@ jobs:
       with:
         submodules: 'recursive'
 
+    - name: Setup GDExtension Build Environment
+      uses: NodotProject/godot-cpp-builds@v1
+      with:
+        godot-version: '4.5-stable'
+        godot-cpp-path: './godot-cpp'
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -53,26 +59,6 @@ jobs:
           -Dbuild_examples=OFF -Dbuild_tools=OFF
         make -j$(nproc)
 
-    - name: Cache godot-cpp build
-      uses: actions/cache@v4
-      id: cache-godot-cpp
-      with:
-        path: |
-          godot-cpp/bin
-          godot-cpp/gen
-          godot-cpp/.sconsign.dblite
-        key: ${{ runner.os }}-godot-cpp-linux-x86_64-${{ hashFiles('godot-cpp/SConstruct', 'godot-cpp/gdextension/extension_api.json') }}
-        restore-keys: |
-          ${{ runner.os }}-godot-cpp-linux-x86_64-
-          ${{ runner.os }}-godot-cpp-
-
-    - name: Build godot-cpp bindings
-      if: steps.cache-godot-cpp.outputs.cache-hit != 'true'
-      run: |
-        cd godot-cpp
-        scons platform=linux generate_bindings=yes target=template_release
-        scons platform=linux generate_bindings=yes target=template_debug
-
     - name: Compile GDExtension
       run: scons platform=linux target=template_release
 
@@ -94,6 +80,12 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: 'recursive'
+
+    - name: Setup GDExtension Build Environment
+      uses: NodotProject/godot-cpp-builds@v1
+      with:
+        godot-version: '4.5-stable'
+        godot-cpp-path: './godot-cpp'
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -121,15 +113,6 @@ jobs:
         path: |
           libtorrent/build
         key: ${{ runner.os }}-libtorrent-${{ hashFiles('libtorrent/CMakeLists.txt', 'libtorrent/src/**') }}
-
-    - name: Restore godot-cpp cache
-      uses: actions/cache@v4
-      with:
-        path: |
-          godot-cpp/bin
-          godot-cpp/gen
-          godot-cpp/.sconsign.dblite
-        key: ${{ runner.os }}-godot-cpp-linux-x86_64-${{ hashFiles('godot-cpp/SConstruct', 'godot-cpp/gdextension/extension_api.json') }}
 
     - name: Compile GDExtension
       run: scons platform=linux target=template_release
