@@ -99,8 +99,17 @@ func _process(_delta):
         print("Metadata received: ", info.get_name())
 ```
 
-3. **Add bootstrap nodes**:
+3. **Configure bootstrap nodes**:
 ```gdscript
+# Try setting reliable bootstrap nodes
+session.set_dht_bootstrap_nodes([
+    "router.bittorrent.com:6881",
+    "dht.transmissionbt.com:6881",
+    "router.utorrent.com:6881",
+    "dht.libtorrent.org:25401"
+])
+
+# Or add additional nodes
 session.add_dht_node("router.bittorrent.com", 6881)
 session.add_dht_node("dht.transmissionbt.com", 6881)
 ```

@@ -40,15 +40,43 @@ session.set_max_uploads(4)
 
 ## DHT Configuration
 
+### Bootstrap Nodes
+
+There are two ways to configure DHT bootstrap nodes:
+
+**1. Set complete list (replaces defaults):**
 ```gdscript
-# Start DHT
+# Replace all bootstrap nodes with your custom list
+# This clears the hardcoded defaults from start_dht()
+session.set_dht_bootstrap_nodes([
+    "router.bittorrent.com:6881",
+    "dht.transmissionbt.com:6881",
+    "router.utorrent.com:6881"
+])
+
+# Clear all bootstrap nodes
+session.set_dht_bootstrap_nodes([])
+
+# Start DHT with your custom nodes
+session.start_dht()
+```
+
+**2. Add individual nodes (incremental):**
+```gdscript
+# Start DHT (adds hardcoded default bootstrap nodes)
 session.start_dht()
 
-# Add bootstrap nodes
+# Add additional bootstrap nodes on top of defaults
 session.add_dht_node("router.bittorrent.com", 6881)
 session.add_dht_node("dht.transmissionbt.com", 6881)
 session.add_dht_node("router.utorrent.com", 6881)
+```
 
+**Recommendation:** Use `set_dht_bootstrap_nodes()` before `start_dht()` when you need precise control over which nodes are used.
+
+### State Persistence
+
+```gdscript
 # Save DHT state
 var dht_state = session.save_dht_state()
 var file = FileAccess.open("user://dht.dat", FileAccess.WRITE)

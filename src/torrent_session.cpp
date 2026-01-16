@@ -426,22 +426,25 @@ void TorrentSession::set_dht_bootstrap_nodes(Array nodes) {
     if (!_session) return;
 
     try {
-        if (nodes.size() == 0) {
-            return;
-        }
-
+        // Build comma-separated list of bootstrap nodes
+        std::string bootstrap_nodes;
         for (int i = 0; i < nodes.size(); i++) {
             String node = nodes[i];
-            // Expected format: "host:port"
-            int colon_pos = node.find(":");
-            if (colon_pos > 0) {
-                String host = node.substr(0, colon_pos);
-                String port_str = node.substr(colon_pos + 1);
-                int port = port_str.to_int();
-                if (port > 0) {
-                    add_dht_node(host, port);
-                }
+            if (i > 0) {
+                bootstrap_nodes += ",";
             }
+            bootstrap_nodes += node.utf8().get_data();
+        }
+
+        // Use settings pack to replace the bootstrap nodes list
+        libtorrent::settings_pack settings;
+        settings.set_str(libtorrent::settings_pack::dht_bootstrap_nodes, bootstrap_nodes);
+        _session->apply_settings(settings);
+
+        if (nodes.size() == 0) {
+            UtilityFunctions::print("DHT bootstrap nodes cleared");
+        } else {
+            UtilityFunctions::print("DHT bootstrap nodes set to: " + String(bootstrap_nodes.c_str()));
         }
     } catch (const std::exception& e) {
         UtilityFunctions::push_error("Failed to set DHT bootstrap nodes: " + String(e.what()));

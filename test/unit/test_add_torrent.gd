@@ -117,6 +117,9 @@ func test_save_path_validation():
 		var handle = session.add_torrent_file(dummy_torrent_data, path)
 		assert_null(handle, "Invalid path should return null: " + path)
 
+	# Assert that we got the expected 3 errors (one for each invalid path)
+	assert_push_error(3, "Expected 3 push_errors for invalid paths")
+
 func test_malformed_torrent_handling():
 	# Validates: Implement error handling for malformed torrents
 
@@ -132,6 +135,9 @@ func test_malformed_torrent_handling():
 	# Should handle gracefully (null in real mode, stub handle in stub mode)
 	assert_true(true, "Invalid torrent data handled gracefully")
 
+	# Assert that we got the expected 2 errors (one for each malformed torrent)
+	assert_push_error(2, "Expected 2 push_errors for malformed torrents")
+
 func test_malformed_magnet_handling():
 	# Validates: Error handling for malformed magnet URIs
 
@@ -146,6 +152,9 @@ func test_malformed_magnet_handling():
 	for magnet in invalid_magnets:
 		var handle = session.add_magnet_uri(magnet, "/tmp/test")
 		assert_null(handle, "Invalid magnet should return null: " + magnet)
+
+	# Assert that we got the expected 5 errors (one for each invalid magnet)
+	assert_push_error(5, "Expected 5 push_errors for invalid magnets")
 
 func test_handle_wrapper_return():
 	# Validates: Return proper TorrentHandle wrapper

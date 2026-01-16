@@ -58,13 +58,21 @@ session.set_listen_port(6881)
 ### DHT Configuration
 
 ```gdscript
-# Enable DHT
+# Option 1: Set custom bootstrap nodes (recommended for performance)
+session.set_dht_bootstrap_nodes([
+    "router.bittorrent.com:6881",
+    "dht.transmissionbt.com:6881",
+    "router.utorrent.com:6881",
+    "dht.libtorrent.org:25401"
+])
 session.start_dht()
 
-# Add bootstrap nodes
-session.add_dht_node("router.bittorrent.com", 6881)
-session.add_dht_node("dht.transmissionbt.com", 6881)
+# Option 2: Use defaults and add more nodes
+session.start_dht()
+session.add_dht_node("additional.node.com", 6881)
 ```
+
+**Performance Tip:** Setting a well-distributed list of bootstrap nodes can improve DHT connectivity speed.
 
 ### IPv6 Support
 
