@@ -285,8 +285,40 @@ print("DHT nodes: ", state["nodes"])
 
 ---
 
+#### `void set_dht_bootstrap_nodes(Array nodes)`
+Sets (replaces) the complete list of DHT bootstrap nodes.
+
+**Parameters:**
+- `nodes` (Array): Array of node strings in "host:port" format
+
+**Returns:** None
+
+**Example:**
+```gdscript
+# Replace all bootstrap nodes with custom list
+session.set_dht_bootstrap_nodes([
+    "router.bittorrent.com:6881",
+    "dht.transmissionbt.com:6881",
+    "router.utorrent.com:6881"
+])
+
+# Clear all bootstrap nodes (including hardcoded defaults)
+session.set_dht_bootstrap_nodes([])
+```
+
+**Note:** This method **replaces** all existing bootstrap nodes, including the hardcoded defaults that `start_dht()` adds. This allows you to specify an exact list of bootstrap nodes. Use this when you need precise control over which DHT nodes are used.
+
+**When to use:**
+- Setting a custom list of bootstrap nodes
+- Clearing all bootstrap nodes
+- Replacing the hardcoded default nodes
+
+**See also:** `add_dht_node()` for adding individual nodes incrementally
+
+---
+
 #### `void add_dht_node(String host, int port)`
-Adds a DHT bootstrap node.
+Adds a DHT bootstrap node to the existing list.
 
 **Parameters:**
 - `host` (String): Node hostname or IP
@@ -296,6 +328,8 @@ Adds a DHT bootstrap node.
 ```gdscript
 session.add_dht_node("router.bittorrent.com", 6881)
 ```
+
+**Note:** This method **adds** a node to the existing bootstrap nodes list. Use `set_dht_bootstrap_nodes()` if you want to replace the entire list instead.
 
 ---
 
